@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tab Group Manager</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <!-- 頂部：建立群組區域 -->
+  <div class="header">
+    <h1>Tab Group Manager</h1>
+    <div class="create-group">
+      <input type="text" id="group-name" placeholder="輸入群組名稱...">
+      <div class="color-picker" id="color-picker">
+        <span class="color-dot selected" data-color="blue" style="background:#1a73e8;"></span>
+        <span class="color-dot" data-color="red" style="background:#d93025;"></span>
+        <span class="color-dot" data-color="yellow" style="background:#f9ab00;"></span>
+        <span class="color-dot" data-color="green" style="background:#188038;"></span>
+        <span class="color-dot" data-color="pink" style="background:#d01884;"></span>
+        <span class="color-dot" data-color="purple" style="background:#a142f4;"></span>
+        <span class="color-dot" data-color="cyan" style="background:#007b83;"></span>
+        <span class="color-dot" data-color="orange" style="background:#e8710a;"></span>
+      </div>
+      <button id="btn-create-group">建立群組</button>
+    </div>
+  </div>
+
+  <!-- 現有群組清單 -->
+  <div class="section">
+    <h2>現有群組</h2>
+    <div id="groups-list" class="groups-list">
+      <p class="empty-msg">尚無群組</p>
+    </div>
+  </div>
+
+  <!-- 分頁清單 -->
+  <div class="section">
+    <h2>所有分頁 <span id="tab-count" class="badge">0</span></h2>
+    <div class="tab-actions">
+      <button id="btn-select-all" class="btn-small">全選</button>
+      <button id="btn-deselect-all" class="btn-small">取消全選</button>
+    </div>
+    <div id="tabs-list" class="tabs-list"></div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

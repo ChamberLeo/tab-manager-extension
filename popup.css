@@ -1,0 +1,296 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  width: 380px;
+  max-height: 520px;
+  overflow-y: auto;
+  font-family: "Segoe UI", Arial, sans-serif;
+  font-size: 13px;
+  color: #202124;
+  background: #fff;
+}
+
+/* 頂部區域 */
+.header {
+  padding: 14px 16px 12px;
+  border-bottom: 1px solid #e0e0e0;
+  background: #f8f9fa;
+}
+
+.header h1 {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.create-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+#group-name {
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid #dadce0;
+  border-radius: 6px;
+  font-size: 13px;
+  outline: none;
+}
+
+#group-name:focus {
+  border-color: #1a73e8;
+  box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.15);
+}
+
+/* 顏色選擇器 */
+.color-picker {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.color-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: border-color 0.15s;
+}
+
+.color-dot:hover {
+  opacity: 0.8;
+}
+
+.color-dot.selected {
+  border-color: #202124;
+}
+
+/* 建立群組按鈕 */
+#btn-create-group {
+  padding: 8px 0;
+  background: #1a73e8;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+#btn-create-group:hover:not(:disabled) {
+  background: #1557b0;
+}
+
+#btn-create-group:disabled {
+  background: #c4d7f2;
+  cursor: not-allowed;
+}
+
+/* 段落標題 */
+.section {
+  padding: 10px 16px;
+}
+
+.section h2 {
+  font-size: 13px;
+  font-weight: 600;
+  color: #5f6368;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.badge {
+  background: #e8eaed;
+  color: #5f6368;
+  font-size: 11px;
+  padding: 1px 7px;
+  border-radius: 10px;
+  font-weight: 500;
+}
+
+/* 分頁操作按鈕 */
+.tab-actions {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.btn-small {
+  padding: 4px 10px;
+  font-size: 12px;
+  border: 1px solid #dadce0;
+  border-radius: 4px;
+  background: #fff;
+  color: #5f6368;
+  cursor: pointer;
+}
+
+.btn-small:hover {
+  background: #f1f3f4;
+}
+
+/* 分頁清單 */
+.tabs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tab-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.tab-item:hover {
+  background: #f1f3f4;
+}
+
+.tab-item input[type="checkbox"] {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.tab-item img {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.tab-item .tab-title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+.tab-item .tab-title.active-tab {
+  font-weight: 600;
+}
+
+/* 群組清單 */
+.groups-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.group-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: #f1f3f4;
+}
+
+.group-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  overflow: hidden;
+}
+
+.group-color-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.group-title {
+  font-size: 13px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.group-tab-count {
+  font-size: 11px;
+  color: #5f6368;
+  flex-shrink: 0;
+  margin-left: 4px;
+}
+
+.group-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.group-actions button {
+  padding: 3px 8px;
+  font-size: 11px;
+  border: 1px solid #dadce0;
+  border-radius: 4px;
+  background: #fff;
+  color: #5f6368;
+  cursor: pointer;
+}
+
+.group-actions button:hover {
+  background: #e8eaed;
+}
+
+.group-actions button.btn-danger:hover {
+  background: #fce8e6;
+  color: #d93025;
+  border-color: #d93025;
+}
+
+.empty-msg {
+  color: #9aa0a6;
+  font-size: 12px;
+  text-align: center;
+  padding: 8px 0;
+}
+
+/* 拖曳中的分頁 */
+.tab-item.dragging {
+  opacity: 0.4;
+}
+
+/* 群組被拖曳懸停時 */
+.group-item.drag-over {
+  outline: 2px solid #1a73e8;
+  background: #e8f0fe;
+}
+
+/* 自訂拖曳提示 */
+.drag-ghost {
+  position: absolute;
+  top: -1000px;
+  left: -1000px;
+  padding: 6px 12px;
+  background: #1a73e8;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 4px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* 待用群組標示 */
+.group-item.pending .group-tab-count {
+  color: #9aa0a6;
+  font-style: italic;
+}
