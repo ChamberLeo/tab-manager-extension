@@ -88,3 +88,83 @@ tab-manager-extension/
    - 新增 `bindGroupDragEvents()` 統一處理群組項目的 dragover/dragenter/dragleave/drop
    - drop 到 Chrome 群組 → `chrome.tabs.group({tabIds, groupId})`
    - drop 到待用群組 → 建立新 Chrome 群組 + 設定名稱顏色 + 從 pendingGroups 移除
+
+---
+
+## 第六階段：移除建立時顏色選擇，改為點擊圓點更改顏色
+
+### 需求
+1. 建立群組時移除顏色選擇器，預設使用藍色
+2. 群組建立後，點擊群組的圓形色點可彈出 8 色選擇器
+3. 選擇顏色後立即更新群組顏色
+
+### 待辦事項
+
+- [x] 23. popup.html：移除頂部顏色選擇器 `<div class="color-picker">`
+- [x] 24. popup.css：移除 `.color-picker` 和 `.color-dot` 樣式，新增 `.color-popup` 彈出式選擇器樣式
+- [x] 25. popup.js：移除 `selectedColor` 變數與 `colorPicker` 相關邏輯
+- [x] 26. popup.js：修改 `createGroup()` 使用固定顏色 `"blue"`
+- [x] 27. popup.js：新增 `showColorPopup()` 函數與色點點擊事件
+- [x] 28. popup.js：在 `loadGroups()` 為 Chrome 群組和待用群組的色點加上點擊事件
+
+### Review
+
+**修改了 3 個檔案：**
+
+1. **popup.html**
+   - 移除 `<div class="color-picker">` 整段（包含 8 個顏色圓點）
+   - 建立群組介面簡化為：名稱輸入框 + 建立按鈕
+
+2. **popup.css**
+   - 移除 `.color-picker` 和 `.color-dot` 相關樣式（約 20 行）
+   - 新增 `.group-color-dot.clickable`：hover 放大效果 + cursor pointer
+   - 新增 `.color-popup`：彈出式 8 色選擇器容器（絕對定位、白底、圓角、陰影）
+   - 新增 `.color-popup .color-option`：每個顏色選項的樣式（hover 放大、已選取邊框）
+
+3. **popup.js**
+   - 移除 `selectedColor` 狀態變數
+   - 移除 `colorPicker` DOM 參照和點擊事件
+   - 新增 `activeColorPopup` 狀態追蹤目前開啟的選擇器
+   - `createGroup()`：顏色固定為 `"blue"`
+   - `loadGroups()`：Chrome 群組和待用群組的色點加上 `clickable` class 和點擊事件
+   - 新增 `showColorPopup(anchorEl, currentColor, onSelect)`：
+     - 建立彈出選擇器 DOM
+     - 智慧定位（優先顯示在色點右側，超出則顯示左側）
+     - 點擊顏色 → 執行 callback → 關閉彈出
+   - 新增 `closeColorPopup()`：關閉彈出選擇器
+   - `bindEvents()`：新增點擊外部區域關閉選擇器的邏輯
+
+---
+
+## 第七階段：雙擊重新命名群組
+
+### 需求
+1. 雙擊群組名稱進入編輯模式
+2. 按 Enter 或失去焦點儲存新名稱
+3. 按 Esc 取消編輯
+4. hover 時顯示游標變化提示可編輯
+
+### 待辦事項
+
+- [x] 29. popup.css：新增 `.group-title` hover 樣式（游標變化、淺灰背景）
+- [x] 30. popup.css：新增 `.group-title-input` 編輯輸入框樣式
+- [x] 31. popup.js：為 Chrome 群組名稱加上雙擊事件
+- [x] 32. popup.js：為待用群組名稱加上雙擊事件
+- [x] 33. popup.js：新增 `startEditGroupTitle()` 函數處理編輯邏輯
+
+### Review
+
+**修改了 2 個檔案：**
+
+1. **popup.css**
+   - `.group-title`：新增 `cursor: text`、padding、hover 時淺灰背景，暗示可編輯
+   - `.group-title-input`：編輯輸入框樣式（藍色邊框、白底）
+
+2. **popup.js**
+   - Chrome 群組：為 `.group-title` 加上 `dblclick` 事件 → 呼叫 `chrome.tabGroups.update()` 更新名稱
+   - 待用群組：為 `.group-title` 加上 `dblclick` 事件 → 更新 `pendingGroups` 並儲存
+   - 新增 `startEditGroupTitle(titleEl, currentTitle, onSave)` 函數：
+     - 建立輸入框取代原本的標題元素
+     - 自動選取文字
+     - Enter 儲存、Esc 取消、blur 儲存
+     - 名稱有變更時才執行 onSave callback

@@ -1,18 +1,18 @@
-// ===== 狀態 =====
-let selectedColor = "blue";
+// ===== State =====
 let selectedTabIds = new Set();
-let pendingGroups = [];       // 待用群組（尚未真正建立的群組）
-let draggedTabIds = [];       // 正在拖曳的 tabId 清單
+let pendingGroups = [];       // Pending groups (not yet created)
+let draggedTabIds = [];       // Tab IDs being dragged
+let activeColorPopup = null;  // Currently open color popup
 
-// ===== DOM 元素 =====
+// ===== DOM Elements =====
 const groupNameInput = document.getElementById("group-name");
 const btnCreateGroup = document.getElementById("btn-create-group");
-const colorPicker = document.getElementById("color-picker");
 const tabsList = document.getElementById("tabs-list");
 const groupsList = document.getElementById("groups-list");
 const tabCount = document.getElementById("tab-count");
 const btnSelectAll = document.getElementById("btn-select-all");
 const btnDeselectAll = document.getElementById("btn-deselect-all");
+const themeToggle = document.getElementById("theme-toggle");
 
 // ===== 顏色對應表 =====
 const COLOR_MAP = {
@@ -38,8 +38,9 @@ async function savePendingGroups() {
   await chrome.storage.local.set({ pendingGroups });
 }
 
-// ===== 初始化 =====
+// ===== Initialize =====
 document.addEventListener("DOMContentLoaded", async () => {
+  loadTheme();
   await loadPendingGroups();
   loadTabs();
   loadGroups();
@@ -47,28 +48,27 @@ document.addEventListener("DOMContentLoaded", async () => {
   updateCreateButtonState();
 });
 
-// ===== 事件綁定 =====
+// ===== Event Bindings =====
 function bindEvents() {
-  // 顏色選擇
-  colorPicker.addEventListener("click", (e) => {
-    const dot = e.target.closest(".color-dot");
-    if (!dot) return;
-    colorPicker
-      .querySelectorAll(".color-dot")
-      .forEach((d) => d.classList.remove("selected"));
-    dot.classList.add("selected");
-    selectedColor = dot.dataset.color;
-  });
-
-  // 群組名稱輸入 → 控制按鈕啟用
+  // Group name input -> control button state
   groupNameInput.addEventListener("input", updateCreateButtonState);
 
-  // 建立群組
+  // Create group
   btnCreateGroup.addEventListener("click", createGroup);
 
-  // 全選 / 取消全選
+  // Select all / Deselect all
   btnSelectAll.addEventListener("click", () => toggleAllTabs(true));
   btnDeselectAll.addEventListener("click", () => toggleAllTabs(false));
+
+  // Theme toggle
+  themeToggle.addEventListener("click", toggleTheme);
+
+  // Close color popup when clicking outside
+  document.addEventListener("click", (e) => {
+    if (activeColorPopup && !activeColorPopup.contains(e.target) && !e.target.classList.contains("group-color-dot")) {
+      closeColorPopup();
+    }
+  });
 }
 
 // ===== 載入所有分頁 =====
@@ -123,7 +123,7 @@ async function loadTabs() {
       ghost.className = "drag-ghost";
       ghost.textContent = draggedTabIds.length === 1
         ? escapeHtml(tab.title).substring(0, 30)
-        : `${draggedTabIds.length} 個分頁`;
+        : `${draggedTabIds.length} tabs`;
       document.body.appendChild(ghost);
       e.dataTransfer.setDragImage(ghost, 0, 0);
       // 移除 ghost 元素（下一幀後）
@@ -182,7 +182,7 @@ async function loadGroups() {
   groupsList.innerHTML = "";
 
   if (groups.length === 0 && pendingGroups.length === 0) {
-    groupsList.innerHTML = '<p class="empty-msg">尚無群組</p>';
+    groupsList.innerHTML = '<p class="empty-msg">No groups</p>';
     return;
   }
 
@@ -193,17 +193,37 @@ async function loadGroups() {
     item.className = "group-item";
     item.innerHTML = `
       <div class="group-info">
-        <span class="group-color-dot" style="background:${COLOR_MAP[group.color] || "#5f6368"}"></span>
-        <span class="group-title">${escapeHtml(group.title || "未命名")}</span>
-        <span class="group-tab-count">(${tabs.length} 個分頁)</span>
+        <span class="group-color-dot clickable" data-group-id="${group.id}" data-current-color="${group.color}" style="background:${COLOR_MAP[group.color] || "#5f6368"}"></span>
+        <span class="group-title">${escapeHtml(group.title || "Untitled")}</span>
+        <span class="group-tab-count">(${tabs.length} tabs)</span>
       </div>
       <div class="group-actions">
         <button class="btn-toggle" data-group-id="${group.id}" data-collapsed="${group.collapsed}">
-          ${group.collapsed ? "展開" : "摺疊"}
+          ${group.collapsed ? "Expand" : "Collapse"}
         </button>
-        <button class="btn-danger btn-ungroup" data-group-id="${group.id}">解散</button>
+        <button class="btn-danger btn-ungroup" data-group-id="${group.id}">Ungroup</button>
       </div>
     `;
+
+    // 點擊色點 → 彈出顏色選擇器
+    const colorDot = item.querySelector(".group-color-dot");
+    colorDot.addEventListener("click", (e) => {
+      e.stopPropagation();
+      showColorPopup(colorDot, group.color, async (newColor) => {
+        await chrome.tabGroups.update(group.id, { color: newColor });
+        loadGroups();
+      });
+    });
+
+    // 雙擊名稱 → 編輯模式
+    const titleEl = item.querySelector(".group-title");
+    titleEl.addEventListener("dblclick", (e) => {
+      e.stopPropagation();
+      startEditGroupTitle(titleEl, group.title || "", async (newTitle) => {
+        await chrome.tabGroups.update(group.id, { title: newTitle });
+        loadGroups();
+      });
+    });
 
     // 展開 / 摺疊
     item.querySelector(".btn-toggle").addEventListener("click", async (e) => {
@@ -238,14 +258,42 @@ async function loadGroups() {
     item.className = "group-item pending";
     item.innerHTML = `
       <div class="group-info">
-        <span class="group-color-dot" style="background:${COLOR_MAP[pg.color] || "#5f6368"}"></span>
+        <span class="group-color-dot clickable" data-pending-id="${pg.id}" data-current-color="${pg.color}" style="background:${COLOR_MAP[pg.color] || "#5f6368"}"></span>
         <span class="group-title">${escapeHtml(pg.name)}</span>
-        <span class="group-tab-count">(待用)</span>
+        <span class="group-tab-count">(Pending)</span>
       </div>
       <div class="group-actions">
-        <button class="btn-danger btn-delete-pending" data-pending-id="${pg.id}">刪除</button>
+        <button class="btn-danger btn-delete-pending" data-pending-id="${pg.id}">Delete</button>
       </div>
     `;
+
+    // 點擊色點 → 彈出顏色選擇器
+    const colorDot = item.querySelector(".group-color-dot");
+    colorDot.addEventListener("click", (e) => {
+      e.stopPropagation();
+      showColorPopup(colorDot, pg.color, async (newColor) => {
+        const idx = pendingGroups.findIndex((g) => g.id === pg.id);
+        if (idx !== -1) {
+          pendingGroups[idx].color = newColor;
+          await savePendingGroups();
+          loadGroups();
+        }
+      });
+    });
+
+    // 雙擊名稱 → 編輯模式
+    const titleEl = item.querySelector(".group-title");
+    titleEl.addEventListener("dblclick", (e) => {
+      e.stopPropagation();
+      startEditGroupTitle(titleEl, pg.name, async (newTitle) => {
+        const idx = pendingGroups.findIndex((g) => g.id === pg.id);
+        if (idx !== -1) {
+          pendingGroups[idx].name = newTitle;
+          await savePendingGroups();
+          loadGroups();
+        }
+      });
+    });
 
     // 刪除待用群組
     item.querySelector(".btn-delete-pending").addEventListener("click", async () => {
@@ -276,13 +324,15 @@ async function createGroup() {
   const name = groupNameInput.value.trim();
   if (!name) return;
 
+  const defaultColor = "blue";
+
   if (selectedTabIds.size > 0) {
     // 有勾選分頁 → 直接建立 Chrome 群組
     const tabIds = Array.from(selectedTabIds);
     const groupId = await chrome.tabs.group({ tabIds });
     await chrome.tabGroups.update(groupId, {
       title: name,
-      color: selectedColor,
+      color: defaultColor,
       collapsed: true,
     });
     selectedTabIds.clear();
@@ -291,7 +341,7 @@ async function createGroup() {
     pendingGroups.push({
       id: Date.now().toString(),
       name,
-      color: selectedColor,
+      color: defaultColor,
     });
     await savePendingGroups();
   }
@@ -331,4 +381,128 @@ function escapeHtml(text) {
   const div = document.createElement("div");
   div.textContent = text;
   return div.innerHTML;
+}
+
+// ===== 彈出式顏色選擇器 =====
+function showColorPopup(anchorEl, currentColor, onSelect) {
+  // 先關閉舊的
+  closeColorPopup();
+
+  const popup = document.createElement("div");
+  popup.className = "color-popup";
+
+  // 8 種顏色選項
+  const colors = ["blue", "red", "yellow", "green", "pink", "purple", "cyan", "orange"];
+  colors.forEach((color) => {
+    const option = document.createElement("span");
+    option.className = "color-option" + (color === currentColor ? " selected" : "");
+    option.style.background = COLOR_MAP[color];
+    option.dataset.color = color;
+    option.addEventListener("click", (e) => {
+      e.stopPropagation();
+      closeColorPopup();
+      if (color !== currentColor) {
+        onSelect(color);
+      }
+    });
+    popup.appendChild(option);
+  });
+
+  // 定位在色點附近
+  document.body.appendChild(popup);
+  const anchorRect = anchorEl.getBoundingClientRect();
+  const popupRect = popup.getBoundingClientRect();
+
+  // 預設顯示在色點右側，如果超出視窗則顯示在左側
+  let left = anchorRect.right + 8;
+  if (left + popupRect.width > window.innerWidth) {
+    left = anchorRect.left - popupRect.width - 8;
+  }
+
+  // 垂直置中對齊
+  let top = anchorRect.top + (anchorRect.height / 2) - (popupRect.height / 2);
+  if (top < 0) top = 4;
+  if (top + popupRect.height > window.innerHeight) {
+    top = window.innerHeight - popupRect.height - 4;
+  }
+
+  popup.style.left = `${left}px`;
+  popup.style.top = `${top}px`;
+
+  activeColorPopup = popup;
+}
+
+function closeColorPopup() {
+  if (activeColorPopup) {
+    activeColorPopup.remove();
+    activeColorPopup = null;
+  }
+}
+
+// ===== 群組名稱編輯 =====
+function startEditGroupTitle(titleEl, currentTitle, onSave) {
+  // 建立輸入框
+  const input = document.createElement("input");
+  input.type = "text";
+  input.className = "group-title-input";
+  input.value = currentTitle;
+
+  // 取代原本的標題元素
+  titleEl.style.display = "none";
+  titleEl.parentNode.insertBefore(input, titleEl.nextSibling);
+  input.focus();
+  input.select();
+
+  let saved = false;
+
+  const save = () => {
+    if (saved) return;
+    saved = true;
+    const newTitle = input.value.trim();
+    input.remove();
+    titleEl.style.display = "";
+    if (newTitle && newTitle !== currentTitle) {
+      onSave(newTitle);
+    }
+  };
+
+  const cancel = () => {
+    if (saved) return;
+    saved = true;
+    input.remove();
+    titleEl.style.display = "";
+  };
+
+  // Enter 儲存，Esc 取消
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      save();
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      cancel();
+    }
+  });
+
+  // Save on blur
+  input.addEventListener("blur", save);
+}
+
+// ===== Theme Toggle =====
+function loadTheme() {
+  const savedTheme = localStorage.getItem("theme") || "light";
+  document.body.setAttribute("data-theme", savedTheme);
+  updateThemeIcon(savedTheme);
+}
+
+function toggleTheme() {
+  const currentTheme = document.body.getAttribute("data-theme") || "light";
+  const newTheme = currentTheme === "light" ? "dark" : "light";
+  document.body.setAttribute("data-theme", newTheme);
+  localStorage.setItem("theme", newTheme);
+  updateThemeIcon(newTheme);
+}
+
+function updateThemeIcon(theme) {
+  themeToggle.textContent = theme === "light" ? "☀" : "☾";
 }

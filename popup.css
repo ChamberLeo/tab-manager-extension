@@ -1,32 +1,124 @@
+/* ===== Pixel Font ===== */
+@import url("https://fonts.googleapis.com/css2?family=VT323&display=swap");
+
+/* ===== CSS Variables (Light Mode) ===== */
+:root {
+  --bg-primary: #e0e0e0;
+  --bg-secondary: #c0c0c0;
+  --bg-input: #ffffff;
+  --text-primary: #1a1a1a;
+  --text-secondary: #4a4a4a;
+  --text-muted: #6a6a6a;
+  --border-color: #1a1a1a;
+  --accent: #6b99ca;
+  --accent-hover: #3a7bc8;
+  --danger: #d93025;
+  --danger-bg: #ffcccc;
+  --shadow-light: #ffffff;
+  --shadow-dark: #808080;
+}
+
+/* ===== Dark Mode ===== */
+[data-theme="dark"] {
+  --bg-primary: #2a2a3a;
+  --bg-secondary: #1a1a2a;
+  --bg-input: #3a3a4a;
+  --text-primary: #e0e0e0;
+  --text-secondary: #b0b0b0;
+  --text-muted: #808080;
+  --border-color: #e0e0e0;
+  --accent: #6ab0ff;
+  --accent-hover: #8ac4ff;
+  --danger: #ff6b6b;
+  --danger-bg: #4a2a2a;
+  --shadow-light: #3a3a4a;
+  --shadow-dark: #0a0a1a;
+}
+
+/* ===== Reset ===== */
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
+/* ===== Body ===== */
 body {
-  width: 380px;
+  width: 400px;
   max-height: 520px;
   overflow-y: auto;
-  font-family: "Segoe UI", Arial, sans-serif;
-  font-size: 13px;
-  color: #202124;
-  background: #fff;
+  font-family: "VT323", monospace;
+  font-size: 18px;
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  image-rendering: pixelated;
 }
 
-/* 頂部區域 */
+/* ===== Pixel Border Mixin (using box-shadow) ===== */
+.pixel-border {
+  border: 3px solid var(--border-color);
+  box-shadow:
+    inset -3px -3px 0 var(--shadow-dark),
+    inset 3px 3px 0 var(--shadow-light);
+}
+
+.pixel-border-inset {
+  border: 3px solid var(--border-color);
+  box-shadow:
+    inset 3px 3px 0 var(--shadow-dark),
+    inset -3px -3px 0 var(--shadow-light);
+}
+
+/* ===== Header ===== */
 .header {
-  padding: 14px 16px 12px;
-  border-bottom: 1px solid #e0e0e0;
-  background: #f8f9fa;
+  padding: 12px 16px;
+  border-bottom: 3px solid var(--border-color);
+  background: var(--bg-secondary);
+  position: relative;
+}
+
+.header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
 }
 
 .header h1 {
-  font-size: 16px;
-  font-weight: 600;
-  margin-bottom: 10px;
+  font-size: 20px;
+  font-weight: normal;
+  letter-spacing: 1px;
+  text-transform: uppercase;
 }
 
+/* ===== Theme Toggle Button ===== */
+.theme-toggle {
+  width: 32px;
+  height: 32px;
+  background: var(--bg-input);
+  border: 3px solid var(--border-color);
+  color: var(--text-primary);
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow:
+    inset -2px -2px 0 var(--shadow-dark),
+    inset 2px 2px 0 var(--shadow-light);
+}
+
+.theme-toggle:hover {
+  background: var(--bg-secondary);
+}
+
+.theme-toggle:active {
+  box-shadow:
+    inset 2px 2px 0 var(--shadow-dark),
+    inset -2px -2px 0 var(--shadow-light);
+}
+
+/* ===== Create Group ===== */
 .create-group {
   display: flex;
   flex-direction: column;
@@ -35,114 +127,136 @@ body {
 
 #group-name {
   width: 100%;
-  padding: 7px 10px;
-  border: 1px solid #dadce0;
-  border-radius: 6px;
-  font-size: 13px;
+  padding: 8px 10px;
+  font-family: "VT323", monospace;
+  font-size: 18px;
+  color: var(--text-primary);
+  background: var(--bg-input);
+  border: 3px solid var(--border-color);
   outline: none;
+  box-shadow:
+    inset 2px 2px 0 var(--shadow-dark),
+    inset -2px -2px 0 var(--shadow-light);
 }
 
 #group-name:focus {
-  border-color: #1a73e8;
-  box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.15);
+  background: var(--bg-input);
+  box-shadow:
+    inset 2px 2px 0 var(--accent),
+    inset -2px -2px 0 var(--accent);
 }
 
-/* 顏色選擇器 */
-.color-picker {
-  display: flex;
-  gap: 6px;
-  align-items: center;
+#group-name::placeholder {
+  color: var(--text-muted);
 }
 
-.color-dot {
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
+/* ===== Pixel Button ===== */
+.pixel-btn {
+  padding: 8px 12px;
+  font-family: "VT323", monospace;
+  font-size: 18px;
+  color: var(--text-primary);
+  background: var(--bg-input);
+  border: 3px solid var(--border-color);
   cursor: pointer;
-  border: 2px solid transparent;
-  transition: border-color 0.15s;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  box-shadow:
+    inset -2px -2px 0 var(--shadow-dark),
+    inset 2px 2px 0 var(--shadow-light);
+  transition: none;
 }
 
-.color-dot:hover {
-  opacity: 0.8;
+.pixel-btn:hover:not(:disabled) {
+  background: var(--bg-secondary);
 }
 
-.color-dot.selected {
-  border-color: #202124;
+.pixel-btn:active:not(:disabled) {
+  box-shadow:
+    inset 2px 2px 0 var(--shadow-dark),
+    inset -2px -2px 0 var(--shadow-light);
 }
 
-/* 建立群組按鈕 */
-#btn-create-group {
-  padding: 8px 0;
-  background: #1a73e8;
-  color: #fff;
-  border: none;
-  border-radius: 6px;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-
-#btn-create-group:hover:not(:disabled) {
-  background: #1557b0;
-}
-
-#btn-create-group:disabled {
-  background: #c4d7f2;
+.pixel-btn:disabled {
+  color: var(--text-muted);
   cursor: not-allowed;
+  opacity: 0.6;
 }
 
-/* 段落標題 */
+.pixel-btn-primary {
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.pixel-btn-primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.pixel-btn-danger:hover:not(:disabled) {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+/* ===== Section ===== */
 .section {
   padding: 10px 16px;
 }
 
 .section h2 {
-  font-size: 13px;
-  font-weight: 600;
-  color: #5f6368;
+  font-size: 16px;
+  font-weight: normal;
+  color: var(--text-secondary);
   margin-bottom: 8px;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
 .badge {
-  background: #e8eaed;
-  color: #5f6368;
-  font-size: 11px;
-  padding: 1px 7px;
-  border-radius: 10px;
-  font-weight: 500;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 16px;
+  padding: 2px 8px;
+  border: 2px solid var(--border-color);
 }
 
-/* 分頁操作按鈕 */
+/* ===== Tab Actions ===== */
 .tab-actions {
   display: flex;
-  gap: 6px;
+  gap: 8px;
   margin-bottom: 8px;
 }
 
 .btn-small {
   padding: 4px 10px;
-  font-size: 12px;
-  border: 1px solid #dadce0;
-  border-radius: 4px;
-  background: #fff;
-  color: #5f6368;
+  font-family: "VT323", monospace;
+  font-size: 16px;
+  color: var(--text-secondary);
+  background: var(--bg-input);
+  border: 2px solid var(--border-color);
   cursor: pointer;
+  box-shadow:
+    inset -1px -1px 0 var(--shadow-dark),
+    inset 1px 1px 0 var(--shadow-light);
 }
 
 .btn-small:hover {
-  background: #f1f3f4;
+  background: var(--bg-secondary);
 }
 
-/* 分頁清單 */
+.btn-small:active {
+  box-shadow:
+    inset 1px 1px 0 var(--shadow-dark),
+    inset -1px -1px 0 var(--shadow-light);
+}
+
+/* ===== Tabs List ===== */
 .tabs-list {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
 }
 
 .tab-item {
@@ -150,13 +264,13 @@ body {
   align-items: center;
   gap: 8px;
   padding: 6px 8px;
-  border-radius: 6px;
+  background: var(--bg-secondary);
+  border: 2px solid var(--border-color);
   cursor: pointer;
-  transition: background 0.1s;
 }
 
 .tab-item:hover {
-  background: #f1f3f4;
+  background: var(--bg-input);
 }
 
 .tab-item input[type="checkbox"] {
@@ -164,12 +278,14 @@ body {
   width: 16px;
   height: 16px;
   cursor: pointer;
+  accent-color: var(--accent);
 }
 
 .tab-item img {
   width: 16px;
   height: 16px;
   flex-shrink: 0;
+  image-rendering: pixelated;
 }
 
 .tab-item .tab-title {
@@ -177,27 +293,30 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 13px;
+  font-size: 16px;
 }
 
 .tab-item .tab-title.active-tab {
-  font-weight: 600;
+  color: var(--accent);
 }
 
-/* 群組清單 */
+/* ===== Groups List ===== */
 .groups-list {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
 .group-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 6px 10px;
-  border-radius: 6px;
-  background: #f1f3f4;
+  padding: 8px 12px;
+  background: var(--bg-secondary);
+  border: 3px solid var(--border-color);
+  box-shadow:
+    inset -2px -2px 0 var(--shadow-dark),
+    inset 2px 2px 0 var(--shadow-light);
 }
 
 .group-info {
@@ -205,31 +324,95 @@ body {
   align-items: center;
   gap: 8px;
   flex: 1;
-  overflow: hidden;
+  min-width: 0;
 }
 
+/* ===== Group Color Dot (Pixel Style) ===== */
 .group-color-dot {
   width: 12px;
   height: 12px;
-  border-radius: 50%;
   flex-shrink: 0;
+  border: 2px solid var(--border-color);
 }
 
+.group-color-dot.clickable {
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+
+.group-color-dot.clickable:hover {
+  transform: scale(1.3);
+}
+
+/* ===== Color Popup (Pixel Style) ===== */
+.color-popup {
+  position: absolute;
+  display: flex;
+  gap: 6px;
+  padding: 8px 10px;
+  background: var(--bg-input);
+  border: 3px solid var(--border-color);
+  box-shadow:
+    inset -2px -2px 0 var(--shadow-dark),
+    inset 2px 2px 0 var(--shadow-light),
+    4px 4px 0 rgba(0, 0, 0, 0.3);
+  z-index: 1000;
+}
+
+.color-popup .color-option {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+  border: 2px solid var(--border-color);
+  transition: transform 0.1s;
+}
+
+.color-popup .color-option:hover {
+  transform: scale(1.2);
+}
+
+.color-popup .color-option.selected {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+/* ===== Group Title ===== */
 .group-title {
-  font-size: 13px;
-  font-weight: 500;
+  font-size: 18px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  cursor: text;
+  padding: 2px 4px;
+  margin: -2px -4px;
+  transition: background 0.1s;
+}
+
+.group-title:hover {
+  background: var(--shadow-dark);
+}
+
+/* ===== Group Title Input ===== */
+.group-title-input {
+  font-family: "VT323", monospace;
+  font-size: 18px;
+  padding: 2px 4px;
+  margin: -2px -4px;
+  color: var(--text-primary);
+  background: var(--bg-input);
+  border: 2px solid var(--accent);
+  outline: none;
+  min-width: 60px;
+  max-width: 150px;
 }
 
 .group-tab-count {
-  font-size: 11px;
-  color: #5f6368;
+  font-size: 14px;
+  color: var(--text-muted);
   flex-shrink: 0;
   margin-left: 4px;
 }
 
+/* ===== Group Actions ===== */
 .group-actions {
   display: flex;
   gap: 4px;
@@ -237,60 +420,92 @@ body {
 }
 
 .group-actions button {
-  padding: 3px 8px;
-  font-size: 11px;
-  border: 1px solid #dadce0;
-  border-radius: 4px;
-  background: #fff;
-  color: #5f6368;
+  padding: 4px 8px;
+  font-family: "VT323", monospace;
+  font-size: 14px;
+  color: var(--text-secondary);
+  background: var(--bg-input);
+  border: 2px solid var(--border-color);
   cursor: pointer;
+  box-shadow:
+    inset -1px -1px 0 var(--shadow-dark),
+    inset 1px 1px 0 var(--shadow-light);
 }
 
 .group-actions button:hover {
-  background: #e8eaed;
+  background: var(--bg-secondary);
+}
+
+.group-actions button:active {
+  box-shadow:
+    inset 1px 1px 0 var(--shadow-dark),
+    inset -1px -1px 0 var(--shadow-light);
 }
 
 .group-actions button.btn-danger:hover {
-  background: #fce8e6;
-  color: #d93025;
-  border-color: #d93025;
+  background: var(--danger-bg);
+  color: var(--danger);
 }
 
+/* ===== Empty Message ===== */
 .empty-msg {
-  color: #9aa0a6;
-  font-size: 12px;
+  color: var(--text-muted);
+  font-size: 16px;
   text-align: center;
-  padding: 8px 0;
+  padding: 12px 0;
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
-/* 拖曳中的分頁 */
+/* ===== Drag States ===== */
 .tab-item.dragging {
   opacity: 0.4;
 }
 
-/* 群組被拖曳懸停時 */
 .group-item.drag-over {
-  outline: 2px solid #1a73e8;
-  background: #e8f0fe;
+  box-shadow:
+    inset -2px -2px 0 var(--accent),
+    inset 2px 2px 0 var(--accent),
+    0 0 0 3px var(--accent);
+  background: var(--bg-input);
 }
 
-/* 自訂拖曳提示 */
+/* ===== Drag Ghost ===== */
 .drag-ghost {
   position: absolute;
   top: -1000px;
   left: -1000px;
   padding: 6px 12px;
-  background: #1a73e8;
-  color: #fff;
-  font-size: 12px;
-  font-weight: 500;
-  border-radius: 4px;
+  font-family: "VT323", monospace;
+  font-size: 16px;
+  background: var(--accent);
+  color: #ffffff;
+  border: 2px solid var(--border-color);
   white-space: nowrap;
   pointer-events: none;
 }
 
-/* 待用群組標示 */
+/* ===== Pending Group ===== */
 .group-item.pending .group-tab-count {
-  color: #9aa0a6;
+  color: var(--text-muted);
   font-style: italic;
+}
+
+/* ===== Scrollbar (Pixel Style) ===== */
+body::-webkit-scrollbar {
+  width: 12px;
+}
+
+body::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+  border-left: 2px solid var(--border-color);
+}
+
+body::-webkit-scrollbar-thumb {
+  background: var(--bg-input);
+  border: 2px solid var(--border-color);
+}
+
+body::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
 }
