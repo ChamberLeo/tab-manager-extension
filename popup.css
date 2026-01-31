@@ -266,11 +266,29 @@ body {
   padding: 6px 8px;
   background: var(--bg-secondary);
   border: 2px solid var(--border-color);
-  cursor: pointer;
+  cursor: grab;
 }
 
 .tab-item:hover {
   background: var(--bg-input);
+}
+
+.tab-item:active {
+  cursor: grabbing;
+}
+
+/* Drag Handle */
+.drag-handle {
+  color: var(--text-muted);
+  font-size: 14px;
+  letter-spacing: -2px;
+  cursor: grab;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
 }
 
 .tab-item input[type="checkbox"] {
@@ -305,6 +323,26 @@ body {
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+/* Drop Zone Hint */
+.drop-zone-hint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  border: 3px dashed var(--text-muted);
+  color: var(--text-muted);
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-top: 4px;
+}
+
+.drop-zone-hint.drag-over {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--bg-input);
 }
 
 .group-item {

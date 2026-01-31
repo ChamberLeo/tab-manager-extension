@@ -86,6 +86,7 @@ async function loadTabs() {
     item.draggable = true;
     item.dataset.tabId = tab.id;
     item.innerHTML = `
+      <span class="drag-handle">::</span>
       <input type="checkbox" data-tab-id="${tab.id}">
       <img src="${tab.favIconUrl || "icons/icon16.png"}" alt="">
       <span class="tab-title ${tab.active ? "active-tab" : ""}">${escapeHtml(tab.title)}</span>
@@ -101,9 +102,10 @@ async function loadTabs() {
       updateCreateButtonState();
     });
 
-    // 點擊整行也能切換勾選
+    // 點擊整行也能切換勾選（但不包括拖曳手把）
     item.addEventListener("click", (e) => {
       if (e.target.tagName === "INPUT") return;
+      if (e.target.classList.contains("drag-handle")) return;
       checkbox.checked = !checkbox.checked;
       checkbox.dispatchEvent(new Event("change"));
     });
@@ -182,8 +184,8 @@ async function loadGroups() {
   groupsList.innerHTML = "";
 
   if (groups.length === 0 && pendingGroups.length === 0) {
-    groupsList.innerHTML = '<p class="empty-msg">No groups</p>';
-    return;
+    groupsList.innerHTML = '<p class="empty-msg">No groups yet</p>';
+    // Still add drop hint even when no groups
   }
 
   // Chrome 群組
@@ -317,6 +319,48 @@ async function loadGroups() {
 
     groupsList.appendChild(item);
   }
+
+  // Drop zone hint
+  const dropHint = document.createElement("div");
+  dropHint.className = "drop-zone-hint";
+  dropHint.textContent = ":: Drop tabs here ::";
+
+  // Drop zone drag events
+  dropHint.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  });
+
+  dropHint.addEventListener("dragenter", (e) => {
+    e.preventDefault();
+    dropHint.classList.add("drag-over");
+  });
+
+  dropHint.addEventListener("dragleave", (e) => {
+    if (!dropHint.contains(e.relatedTarget)) {
+      dropHint.classList.remove("drag-over");
+    }
+  });
+
+  dropHint.addEventListener("drop", async (e) => {
+    e.preventDefault();
+    dropHint.classList.remove("drag-over");
+    if (draggedTabIds.length === 0) return;
+
+    // Create new group with dropped tabs
+    const groupId = await chrome.tabs.group({ tabIds: draggedTabIds });
+    await chrome.tabGroups.update(groupId, {
+      title: "New Group",
+      color: "blue",
+      collapsed: true,
+    });
+
+    draggedTabIds = [];
+    loadTabs();
+    loadGroups();
+  });
+
+  groupsList.appendChild(dropHint);
 }
 
 // ===== 建立群組 =====
