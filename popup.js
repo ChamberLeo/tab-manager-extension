@@ -11,6 +11,14 @@ const btnSelectAll = document.getElementById("btn-select-all");
 const btnDeselectAll = document.getElementById("btn-deselect-all");
 const themeToggle = document.getElementById("theme-toggle");
 
+// ===== 常數設定 =====
+const CONFIG = {
+  MAX_GROUP_TITLE_LENGTH: 100,
+  MAX_DRAG_TITLE_LENGTH: 30,
+  DEFAULT_ICON: "icons/icon16.png",
+  ALLOWED_PROTOCOLS: ['http:', 'https:', 'chrome:', 'chrome-extension:']
+};
+
 // ===== 顏色對應表 =====
 const COLOR_MAP = {
   blue: "#1a73e8",
@@ -22,6 +30,20 @@ const COLOR_MAP = {
   cyan: "#007b83",
   orange: "#e8710a",
 };
+
+// ===== 安全性：驗證 favicon URL =====
+function sanitizeFavIconUrl(url) {
+  if (!url) return CONFIG.DEFAULT_ICON;
+  try {
+    const parsedUrl = new URL(url);
+    if (!CONFIG.ALLOWED_PROTOCOLS.includes(parsedUrl.protocol)) {
+      return CONFIG.DEFAULT_ICON;
+    }
+    return url;
+  } catch (e) {
+    return CONFIG.DEFAULT_ICON;
+  }
+}
 
 // ===== Initialize =====
 document.addEventListener("DOMContentLoaded", () => {
@@ -50,24 +72,29 @@ function bindEvents() {
 
 // ===== 載入所有分頁 =====
 async function loadTabs() {
-  const tabs = await chrome.tabs.query({ currentWindow: true });
-  tabsList.innerHTML = "";
-  tabCount.textContent = tabs.length;
+  try {
+    const tabs = await chrome.tabs.query({ currentWindow: true });
+    tabsList.innerHTML = "";
+    tabCount.textContent = tabs.length;
 
-  tabs.forEach((tab) => {
-    // 跳過已在群組中的分頁
-    if (tab.groupId && tab.groupId !== -1) return;
+    // 清理無效的 selectedTabIds
+    const validTabIds = new Set(tabs.map(t => t.id));
+    selectedTabIds = new Set([...selectedTabIds].filter(id => validTabIds.has(id)));
 
-    const item = document.createElement("div");
-    item.className = "tab-item";
-    item.draggable = true;
-    item.dataset.tabId = tab.id;
-    item.innerHTML = `
-      <span class="drag-handle">::</span>
-      <input type="checkbox" data-tab-id="${tab.id}">
-      <img src="${tab.favIconUrl || "icons/icon16.png"}" alt="">
-      <span class="tab-title ${tab.active ? "active-tab" : ""}">${escapeHtml(tab.title)}</span>
-    `;
+    tabs.forEach((tab) => {
+      // 跳過已在群組中的分頁
+      if (tab.groupId && tab.groupId !== -1) return;
+
+      const item = document.createElement("div");
+      item.className = "tab-item";
+      item.draggable = true;
+      item.dataset.tabId = tab.id;
+      item.innerHTML = `
+        <span class="drag-handle">::</span>
+        <input type="checkbox" data-tab-id="${tab.id}">
+        <img src="${sanitizeFavIconUrl(tab.favIconUrl)}" alt="">
+        <span class="tab-title ${tab.active ? "active-tab" : ""}">${escapeHtml(tab.title)}</span>
+      `;
 
     const checkbox = item.querySelector("input[type='checkbox']");
     checkbox.addEventListener("change", () => {
@@ -100,7 +127,7 @@ async function loadTabs() {
       const ghost = document.createElement("div");
       ghost.className = "drag-ghost";
       ghost.textContent = draggedTabIds.length === 1
-        ? escapeHtml(tab.title).substring(0, 30)
+        ? escapeHtml(tab.title).substring(0, CONFIG.MAX_DRAG_TITLE_LENGTH)
         : `${draggedTabIds.length} tabs`;
       document.body.appendChild(ghost);
       e.dataTransfer.setDragImage(ghost, 0, 0);
@@ -115,11 +142,15 @@ async function loadTabs() {
     });
 
     tabsList.appendChild(item);
-  });
+    });
 
-  // 更新未分組的分頁數量
-  const ungroupedCount = tabsList.querySelectorAll(".tab-item").length;
-  tabCount.textContent = ungroupedCount;
+    // 更新未分組的分頁數量
+    const ungroupedCount = tabsList.querySelectorAll(".tab-item").length;
+    tabCount.textContent = ungroupedCount;
+  } catch (error) {
+    console.error('Failed to load tabs:', error);
+    tabsList.innerHTML = '<p class="empty-msg">Error loading tabs</p>';
+  }
 }
 
 // ===== 群組項目的拖曳事件綁定 =====
@@ -145,19 +176,24 @@ function bindGroupDragEvents(item, dropHandler) {
     e.preventDefault();
     item.classList.remove("drag-over");
     if (draggedTabIds.length === 0) return;
-    await dropHandler();
-    draggedTabIds = [];
-    loadTabs();
-    loadGroups();
+    try {
+      await dropHandler();
+      draggedTabIds = [];
+      loadTabs();
+      loadGroups();
+    } catch (error) {
+      console.error('Failed to drop tabs:', error);
+    }
   });
 }
 
 // ===== 載入現有群組 =====
 async function loadGroups() {
-  const groups = await chrome.tabGroups.query({
-    windowId: chrome.windows.WINDOW_ID_CURRENT,
-  });
-  groupsList.innerHTML = "";
+  try {
+    const groups = await chrome.tabGroups.query({
+      windowId: chrome.windows.WINDOW_ID_CURRENT,
+    });
+    groupsList.innerHTML = "";
 
   if (groups.length === 0) {
     groupsList.innerHTML = '<p class="empty-msg">No groups yet</p>';
@@ -188,8 +224,12 @@ async function loadGroups() {
     colorDot.addEventListener("click", (e) => {
       e.stopPropagation();
       showColorPopup(colorDot, group.color, async (newColor) => {
-        await chrome.tabGroups.update(group.id, { color: newColor });
-        loadGroups();
+        try {
+          await chrome.tabGroups.update(group.id, { color: newColor });
+          loadGroups();
+        } catch (error) {
+          console.error('Failed to update group color:', error);
+        }
       });
     });
 
@@ -198,28 +238,39 @@ async function loadGroups() {
     titleEl.addEventListener("dblclick", (e) => {
       e.stopPropagation();
       startEditGroupTitle(titleEl, group.title || "", async (newTitle) => {
-        await chrome.tabGroups.update(group.id, { title: newTitle });
-        loadGroups();
+        try {
+          await chrome.tabGroups.update(group.id, { title: newTitle });
+          loadGroups();
+        } catch (error) {
+          console.error('Failed to update group title:', error);
+        }
       });
     });
 
     // 展開 / 摺疊
     item.querySelector(".btn-toggle").addEventListener("click", async (e) => {
-      const groupId = Number(e.target.dataset.groupId);
-      const isCollapsed = e.target.dataset.collapsed === "true";
-      await chrome.tabGroups.update(groupId, { collapsed: !isCollapsed });
-      loadGroups();
+      try {
+        const groupId = Number(e.target.dataset.groupId);
+        const isCollapsed = e.target.dataset.collapsed === "true";
+        await chrome.tabGroups.update(groupId, { collapsed: !isCollapsed });
+        loadGroups();
+      } catch (error) {
+        console.error('Failed to toggle group:', error);
+      }
     });
 
     // 解散群組
     item.querySelector(".btn-ungroup").addEventListener("click", async (e) => {
-      const groupId = Number(e.target.dataset.groupId);
-      const groupTabs = await chrome.tabs.query({ groupId });
-      for (const t of groupTabs) {
-        await chrome.tabs.ungroup(t.id);
+      try {
+        const groupId = Number(e.target.dataset.groupId);
+        const groupTabs = await chrome.tabs.query({ groupId });
+        const tabIds = groupTabs.map(t => t.id);
+        await chrome.tabs.ungroup(tabIds);
+        loadGroups();
+        loadTabs();
+      } catch (error) {
+        console.error('Failed to ungroup:', error);
       }
-      loadGroups();
-      loadTabs();
     });
 
     // 拖曳放入 Chrome 群組
@@ -257,20 +308,28 @@ async function loadGroups() {
     dropHint.classList.remove("drag-over");
     if (draggedTabIds.length === 0) return;
 
-    // Create new group with dropped tabs
-    const groupId = await chrome.tabs.group({ tabIds: draggedTabIds });
-    await chrome.tabGroups.update(groupId, {
-      title: "New Group",
-      color: "blue",
-      collapsed: true,
-    });
+    try {
+      // Create new group with dropped tabs
+      const groupId = await chrome.tabs.group({ tabIds: draggedTabIds });
+      await chrome.tabGroups.update(groupId, {
+        title: "New Group",
+        color: "blue",
+        collapsed: true,
+      });
 
-    draggedTabIds = [];
-    loadTabs();
-    loadGroups();
+      draggedTabIds = [];
+      loadTabs();
+      loadGroups();
+    } catch (error) {
+      console.error('Failed to create group:', error);
+    }
   });
 
-  groupsList.appendChild(dropHint);
+    groupsList.appendChild(dropHint);
+  } catch (error) {
+    console.error('Failed to load groups:', error);
+    groupsList.innerHTML = '<p class="empty-msg">Error loading groups</p>';
+  }
 }
 
 // ===== 全選 / 取消全選 =====
@@ -301,14 +360,21 @@ function showColorPopup(anchorEl, currentColor, onSelect) {
 
   const popup = document.createElement("div");
   popup.className = "color-popup";
+  popup.setAttribute("role", "listbox");
+  popup.setAttribute("aria-label", "Select group color");
 
   // 8 種顏色選項
   const colors = ["blue", "red", "yellow", "green", "pink", "purple", "cyan", "orange"];
-  colors.forEach((color) => {
+  colors.forEach((color, index) => {
     const option = document.createElement("span");
     option.className = "color-option" + (color === currentColor ? " selected" : "");
     option.style.background = COLOR_MAP[color];
     option.dataset.color = color;
+    option.setAttribute("role", "option");
+    option.setAttribute("aria-label", color);
+    option.setAttribute("aria-selected", color === currentColor);
+    option.tabIndex = index === 0 ? 0 : -1;
+
     option.addEventListener("click", (e) => {
       e.stopPropagation();
       closeColorPopup();
@@ -316,6 +382,41 @@ function showColorPopup(anchorEl, currentColor, onSelect) {
         onSelect(color);
       }
     });
+
+    // 鍵盤支持
+    option.addEventListener("keydown", (e) => {
+      const options = popup.querySelectorAll(".color-option");
+      let currentIndex = Array.from(options).indexOf(option);
+
+      switch (e.key) {
+        case "ArrowRight":
+        case "ArrowDown":
+          e.preventDefault();
+          currentIndex = (currentIndex + 1) % options.length;
+          options[currentIndex].focus();
+          break;
+        case "ArrowLeft":
+        case "ArrowUp":
+          e.preventDefault();
+          currentIndex = (currentIndex - 1 + options.length) % options.length;
+          options[currentIndex].focus();
+          break;
+        case "Enter":
+        case " ":
+          e.preventDefault();
+          closeColorPopup();
+          if (color !== currentColor) {
+            onSelect(color);
+          }
+          break;
+        case "Escape":
+          e.preventDefault();
+          closeColorPopup();
+          anchorEl.focus();
+          break;
+      }
+    });
+
     popup.appendChild(option);
   });
 
@@ -341,6 +442,12 @@ function showColorPopup(anchorEl, currentColor, onSelect) {
   popup.style.top = `${top}px`;
 
   activeColorPopup = popup;
+
+  // 自動聚焦到第一個選項
+  const firstOption = popup.querySelector(".color-option");
+  if (firstOption) {
+    firstOption.focus();
+  }
 }
 
 function closeColorPopup() {
@@ -369,7 +476,13 @@ function startEditGroupTitle(titleEl, currentTitle, onSave) {
   const save = () => {
     if (saved) return;
     saved = true;
-    const newTitle = input.value.trim();
+    let newTitle = input.value.trim();
+
+    // 長度限制
+    if (newTitle.length > CONFIG.MAX_GROUP_TITLE_LENGTH) {
+      newTitle = newTitle.substring(0, CONFIG.MAX_GROUP_TITLE_LENGTH);
+    }
+
     input.remove();
     titleEl.style.display = "";
     if (newTitle && newTitle !== currentTitle) {

@@ -105,6 +105,13 @@ body {
   box-shadow:
     inset -2px -2px 0 var(--shadow-dark),
     inset 2px 2px 0 var(--shadow-light);
+  line-height: 1;
+}
+
+/* 太陽圖示位置微調 */
+[data-theme="light"] .theme-toggle {
+  padding-right: 2px;
+  padding-bottom: 2px;
 }
 
 .theme-toggle:hover {
@@ -410,6 +417,12 @@ body {
 
 .color-popup .color-option.selected {
   box-shadow: 0 0 0 2px var(--accent);
+}
+
+.color-popup .color-option:focus {
+  outline: none;
+  box-shadow: 0 0 0 1px var(--accent);
+  transform: scale(1.2);
 }
 
 /* ===== Group Title ===== */
