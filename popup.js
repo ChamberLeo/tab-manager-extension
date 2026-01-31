@@ -1,12 +1,9 @@
 // ===== State =====
 let selectedTabIds = new Set();
-let pendingGroups = [];       // Pending groups (not yet created)
 let draggedTabIds = [];       // Tab IDs being dragged
 let activeColorPopup = null;  // Currently open color popup
 
 // ===== DOM Elements =====
-const groupNameInput = document.getElementById("group-name");
-const btnCreateGroup = document.getElementById("btn-create-group");
 const tabsList = document.getElementById("tabs-list");
 const groupsList = document.getElementById("groups-list");
 const tabCount = document.getElementById("tab-count");
@@ -26,36 +23,16 @@ const COLOR_MAP = {
   orange: "#e8710a",
 };
 
-// ===== 待用群組 Storage =====
-async function loadPendingGroups() {
-  if (!chrome.storage?.local) return;
-  const data = await chrome.storage.local.get("pendingGroups");
-  pendingGroups = data.pendingGroups || [];
-}
-
-async function savePendingGroups() {
-  if (!chrome.storage?.local) return;
-  await chrome.storage.local.set({ pendingGroups });
-}
-
 // ===== Initialize =====
-document.addEventListener("DOMContentLoaded", async () => {
+document.addEventListener("DOMContentLoaded", () => {
   loadTheme();
-  await loadPendingGroups();
   loadTabs();
   loadGroups();
   bindEvents();
-  updateCreateButtonState();
 });
 
 // ===== Event Bindings =====
 function bindEvents() {
-  // Group name input -> control button state
-  groupNameInput.addEventListener("input", updateCreateButtonState);
-
-  // Create group
-  btnCreateGroup.addEventListener("click", createGroup);
-
   // Select all / Deselect all
   btnSelectAll.addEventListener("click", () => toggleAllTabs(true));
   btnDeselectAll.addEventListener("click", () => toggleAllTabs(false));
@@ -99,7 +76,6 @@ async function loadTabs() {
       } else {
         selectedTabIds.delete(tab.id);
       }
-      updateCreateButtonState();
     });
 
     // 點擊整行也能切換勾選（但不包括拖曳手把）
@@ -183,7 +159,7 @@ async function loadGroups() {
   });
   groupsList.innerHTML = "";
 
-  if (groups.length === 0 && pendingGroups.length === 0) {
+  if (groups.length === 0) {
     groupsList.innerHTML = '<p class="empty-msg">No groups yet</p>';
     // Still add drop hint even when no groups
   }
@@ -254,72 +230,6 @@ async function loadGroups() {
     groupsList.appendChild(item);
   }
 
-  // 待用群組
-  for (const pg of pendingGroups) {
-    const item = document.createElement("div");
-    item.className = "group-item pending";
-    item.innerHTML = `
-      <div class="group-info">
-        <span class="group-color-dot clickable" data-pending-id="${pg.id}" data-current-color="${pg.color}" style="background:${COLOR_MAP[pg.color] || "#5f6368"}"></span>
-        <span class="group-title">${escapeHtml(pg.name)}</span>
-        <span class="group-tab-count">(Pending)</span>
-      </div>
-      <div class="group-actions">
-        <button class="btn-danger btn-delete-pending" data-pending-id="${pg.id}">Delete</button>
-      </div>
-    `;
-
-    // 點擊色點 → 彈出顏色選擇器
-    const colorDot = item.querySelector(".group-color-dot");
-    colorDot.addEventListener("click", (e) => {
-      e.stopPropagation();
-      showColorPopup(colorDot, pg.color, async (newColor) => {
-        const idx = pendingGroups.findIndex((g) => g.id === pg.id);
-        if (idx !== -1) {
-          pendingGroups[idx].color = newColor;
-          await savePendingGroups();
-          loadGroups();
-        }
-      });
-    });
-
-    // 雙擊名稱 → 編輯模式
-    const titleEl = item.querySelector(".group-title");
-    titleEl.addEventListener("dblclick", (e) => {
-      e.stopPropagation();
-      startEditGroupTitle(titleEl, pg.name, async (newTitle) => {
-        const idx = pendingGroups.findIndex((g) => g.id === pg.id);
-        if (idx !== -1) {
-          pendingGroups[idx].name = newTitle;
-          await savePendingGroups();
-          loadGroups();
-        }
-      });
-    });
-
-    // 刪除待用群組
-    item.querySelector(".btn-delete-pending").addEventListener("click", async () => {
-      pendingGroups = pendingGroups.filter((g) => g.id !== pg.id);
-      await savePendingGroups();
-      loadGroups();
-    });
-
-    // 拖曳放入待用群組 → 真正建立 Chrome 群組
-    bindGroupDragEvents(item, async () => {
-      const newGroupId = await chrome.tabs.group({ tabIds: draggedTabIds });
-      await chrome.tabGroups.update(newGroupId, {
-        title: pg.name,
-        color: pg.color,
-        collapsed: true,
-      });
-      // 移除待用群組
-      pendingGroups = pendingGroups.filter((g) => g.id !== pg.id);
-      await savePendingGroups();
-    });
-
-    groupsList.appendChild(item);
-  }
-
   // Drop zone hint
   const dropHint = document.createElement("div");
   dropHint.className = "drop-zone-hint";
@@ -363,42 +273,6 @@ async function loadGroups() {
   groupsList.appendChild(dropHint);
 }
 
-// ===== 建立群組 =====
-async function createGroup() {
-  const name = groupNameInput.value.trim();
-  if (!name) return;
-
-  const defaultColor = "blue";
-
-  if (selectedTabIds.size > 0) {
-    // 有勾選分頁 → 直接建立 Chrome 群組
-    const tabIds = Array.from(selectedTabIds);
-    const groupId = await chrome.tabs.group({ tabIds });
-    await chrome.tabGroups.update(groupId, {
-      title: name,
-      color: defaultColor,
-      collapsed: true,
-    });
-    selectedTabIds.clear();
-  } else {
-    // 沒有勾選分頁 → 建立待用群組
-    pendingGroups.push({
-      id: Date.now().toString(),
-      name,
-      color: defaultColor,
-    });
-    await savePendingGroups();
-  }
-
-  // 重設狀態
-  groupNameInput.value = "";
-  updateCreateButtonState();
-
-  // 重新載入畫面
-  loadTabs();
-  loadGroups();
-}
-
 // ===== 全選 / 取消全選 =====
 function toggleAllTabs(checked) {
   const checkboxes = tabsList.querySelectorAll("input[type='checkbox']");
@@ -411,13 +285,6 @@ function toggleAllTabs(checked) {
       selectedTabIds.delete(tabId);
     }
   });
-  updateCreateButtonState();
-}
-
-// ===== 更新建立按鈕狀態 =====
-function updateCreateButtonState() {
-  const hasName = groupNameInput.value.trim().length > 0;
-  btnCreateGroup.disabled = !hasName;
 }
 
 // ===== HTML 跳脫 =====
