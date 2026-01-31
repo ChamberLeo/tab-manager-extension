@@ -15,22 +15,53 @@
     </div>
   </div>
 
-  <!-- Groups list -->
-  <div class="section">
-    <h2>Groups</h2>
-    <div id="groups-list" class="groups-list">
-      <p class="empty-msg">No groups</p>
+  <!-- Tab Navigation -->
+  <div class="tab-nav">
+    <button class="tab-nav-btn active" data-tab="groups">Groups</button>
+    <button class="tab-nav-btn" data-tab="saved">Saved <span id="saved-count" class="badge">0</span></button>
+  </div>
+
+  <!-- Groups Tab Content -->
+  <div id="tab-groups" class="tab-content active">
+    <!-- Groups list -->
+    <div class="section">
+      <h2>Groups</h2>
+      <div id="groups-list" class="groups-list">
+        <p class="empty-msg">No groups</p>
+      </div>
+    </div>
+
+    <!-- Tabs list -->
+    <div class="section">
+      <h2>All Tabs <span id="tab-count" class="badge">0</span></h2>
+      <div class="tab-actions">
+        <button id="btn-select-all" class="btn-small" aria-label="Select all tabs">Select All</button>
+        <button id="btn-deselect-all" class="btn-small" aria-label="Deselect all tabs">Deselect All</button>
+      </div>
+      <div id="tabs-list" class="tabs-list"></div>
     </div>
   </div>
 
-  <!-- Tabs list -->
-  <div class="section">
-    <h2>All Tabs <span id="tab-count" class="badge">0</span></h2>
-    <div class="tab-actions">
-      <button id="btn-select-all" class="btn-small" aria-label="Select all tabs">Select All</button>
-      <button id="btn-deselect-all" class="btn-small" aria-label="Deselect all tabs">Deselect All</button>
+  <!-- Saved Tab Content -->
+  <div id="tab-saved" class="tab-content">
+    <div class="section">
+      <div class="saved-actions">
+        <button id="btn-export" class="btn-small" aria-label="Export saved groups">Export</button>
+        <button id="btn-import" class="btn-small" aria-label="Import groups">Import</button>
+        <input type="file" id="import-file" accept=".json" style="display: none;">
+      </div>
+      <div id="saved-groups-list" class="groups-list">
+        <p class="empty-msg">No saved groups</p>
+      </div>
     </div>
-    <div id="tabs-list" class="tabs-list"></div>
+  </div>
+
+  <!-- Pixel Modal -->
+  <div id="pixel-modal" class="pixel-modal hidden">
+    <div class="pixel-modal-content">
+      <p id="pixel-modal-message"></p>
+      <button id="pixel-modal-ok" class="pixel-btn">OK</button>
+    </div>
   </div>
 
   <script src="popup.js"></script>

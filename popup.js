@@ -1,22 +1,33 @@
 // ===== State =====
 let selectedTabIds = new Set();
-let draggedTabIds = [];       // Tab IDs being dragged
-let activeColorPopup = null;  // Currently open color popup
+let draggedTabIds = []; // Tab IDs being dragged
+let activeColorPopup = null; // Currently open color popup
 
 // ===== DOM Elements =====
 const tabsList = document.getElementById("tabs-list");
 const groupsList = document.getElementById("groups-list");
+const savedGroupsList = document.getElementById("saved-groups-list");
 const tabCount = document.getElementById("tab-count");
+const savedCount = document.getElementById("saved-count");
 const btnSelectAll = document.getElementById("btn-select-all");
 const btnDeselectAll = document.getElementById("btn-deselect-all");
+const btnExport = document.getElementById("btn-export");
+const btnImport = document.getElementById("btn-import");
+const importFile = document.getElementById("import-file");
 const themeToggle = document.getElementById("theme-toggle");
+const tabNavBtns = document.querySelectorAll(".tab-nav-btn");
+const tabContents = document.querySelectorAll(".tab-content");
+const pixelModal = document.getElementById("pixel-modal");
+const pixelModalMessage = document.getElementById("pixel-modal-message");
+const pixelModalOk = document.getElementById("pixel-modal-ok");
 
 // ===== 常數設定 =====
 const CONFIG = {
   MAX_GROUP_TITLE_LENGTH: 100,
   MAX_DRAG_TITLE_LENGTH: 30,
   DEFAULT_ICON: "icons/icon16.png",
-  ALLOWED_PROTOCOLS: ['http:', 'https:', 'chrome:', 'chrome-extension:']
+  ALLOWED_PROTOCOLS: ["http:", "https:", "chrome:", "chrome-extension:"],
+  MAX_SHARE_URL_LENGTH: 1800, // 安全的 URL 長度限制
 };
 
 // ===== 顏色對應表 =====
@@ -50,6 +61,7 @@ document.addEventListener("DOMContentLoaded", () => {
   loadTheme();
   loadTabs();
   loadGroups();
+  loadSavedGroups();
   bindEvents();
 });
 
@@ -62,11 +74,101 @@ function bindEvents() {
   // Theme toggle
   themeToggle.addEventListener("click", toggleTheme);
 
+  // Tab navigation
+  tabNavBtns.forEach((btn) => {
+    btn.addEventListener("click", () => switchTab(btn.dataset.tab));
+  });
+
+  // Export / Import
+  btnExport.addEventListener("click", exportSavedGroups);
+  btnImport.addEventListener("click", () => importFile.click());
+  importFile.addEventListener("change", handleImportFile);
+
   // Close color popup when clicking outside
   document.addEventListener("click", (e) => {
-    if (activeColorPopup && !activeColorPopup.contains(e.target) && !e.target.classList.contains("group-color-dot")) {
+    if (
+      activeColorPopup &&
+      !activeColorPopup.contains(e.target) &&
+      !e.target.classList.contains("group-color-dot")
+    ) {
       closeColorPopup();
     }
+  });
+
+  // Pixel modal OK button
+  pixelModalOk.addEventListener("click", hidePixelModal);
+
+  // Keyboard shortcuts
+  document.addEventListener("keydown", handleKeyboardShortcuts);
+}
+
+// ===== Keyboard Shortcuts =====
+function handleKeyboardShortcuts(e) {
+  const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
+  const modifier = isMac ? e.metaKey : e.ctrlKey;
+
+  // Escape - 關閉彈出視窗
+  if (e.key === "Escape") {
+    if (!pixelModal.classList.contains("hidden")) {
+      hidePixelModal();
+      e.preventDefault();
+      return;
+    }
+    if (activeColorPopup) {
+      closeColorPopup();
+      e.preventDefault();
+      return;
+    }
+  }
+
+  // 如果正在輸入文字，不處理快捷鍵
+  if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") {
+    return;
+  }
+
+  if (modifier) {
+    switch (e.key.toLowerCase()) {
+      case "a": // 全選
+        e.preventDefault();
+        toggleAllTabs(true);
+        break;
+      case "d": // 取消全選
+        e.preventDefault();
+        toggleAllTabs(false);
+        break;
+      case "e": // 匯出
+        e.preventDefault();
+        exportSavedGroups();
+        break;
+      case "i": // 匯入
+        e.preventDefault();
+        importFile.click();
+        break;
+    }
+  }
+}
+
+// ===== Pixel Modal =====
+function showPixelModal(message) {
+  pixelModalMessage.textContent = message;
+  pixelModal.classList.remove("hidden");
+  pixelModalOk.focus();
+}
+
+function hidePixelModal() {
+  pixelModal.classList.add("hidden");
+}
+
+// ===== Tab Navigation =====
+function switchTab(tabName) {
+  // Update nav buttons
+  tabNavBtns.forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.tab === tabName);
+  });
+
+  // Update content
+  tabContents.forEach((content) => {
+    content.classList.toggle("active", content.id === `tab-${tabName}`);
   });
 }
 
@@ -78,8 +180,10 @@ async function loadTabs() {
     tabCount.textContent = tabs.length;
 
     // 清理無效的 selectedTabIds
-    const validTabIds = new Set(tabs.map(t => t.id));
-    selectedTabIds = new Set([...selectedTabIds].filter(id => validTabIds.has(id)));
+    const validTabIds = new Set(tabs.map((t) => t.id));
+    selectedTabIds = new Set(
+      [...selectedTabIds].filter((id) => validTabIds.has(id)),
+    );
 
     tabs.forEach((tab) => {
       // 跳過已在群組中的分頁
@@ -96,59 +200,60 @@ async function loadTabs() {
         <span class="tab-title ${tab.active ? "active-tab" : ""}">${escapeHtml(tab.title)}</span>
       `;
 
-    const checkbox = item.querySelector("input[type='checkbox']");
-    checkbox.addEventListener("change", () => {
-      if (checkbox.checked) {
-        selectedTabIds.add(tab.id);
-      } else {
-        selectedTabIds.delete(tab.id);
-      }
-    });
+      const checkbox = item.querySelector("input[type='checkbox']");
+      checkbox.addEventListener("change", () => {
+        if (checkbox.checked) {
+          selectedTabIds.add(tab.id);
+        } else {
+          selectedTabIds.delete(tab.id);
+        }
+      });
 
-    // 點擊整行也能切換勾選（但不包括拖曳手把）
-    item.addEventListener("click", (e) => {
-      if (e.target.tagName === "INPUT") return;
-      if (e.target.classList.contains("drag-handle")) return;
-      checkbox.checked = !checkbox.checked;
-      checkbox.dispatchEvent(new Event("change"));
-    });
+      // 點擊整行也能切換勾選（但不包括拖曳手把）
+      item.addEventListener("click", (e) => {
+        if (e.target.tagName === "INPUT") return;
+        if (e.target.classList.contains("drag-handle")) return;
+        checkbox.checked = !checkbox.checked;
+        checkbox.dispatchEvent(new Event("change"));
+      });
 
-    // 拖曳開始
-    item.addEventListener("dragstart", (e) => {
-      // 如果拖曳的分頁已勾選，拖曳所有已勾選的分頁；否則只拖曳這一個
-      if (selectedTabIds.has(tab.id) && selectedTabIds.size > 1) {
-        draggedTabIds = Array.from(selectedTabIds);
-      } else {
-        draggedTabIds = [tab.id];
-      }
-      item.classList.add("dragging");
+      // 拖曳開始
+      item.addEventListener("dragstart", (e) => {
+        // 如果拖曳的分頁已勾選，拖曳所有已勾選的分頁；否則只拖曳這一個
+        if (selectedTabIds.has(tab.id) && selectedTabIds.size > 1) {
+          draggedTabIds = Array.from(selectedTabIds);
+        } else {
+          draggedTabIds = [tab.id];
+        }
+        item.classList.add("dragging");
 
-      // 自訂 drag image
-      const ghost = document.createElement("div");
-      ghost.className = "drag-ghost";
-      ghost.textContent = draggedTabIds.length === 1
-        ? escapeHtml(tab.title).substring(0, CONFIG.MAX_DRAG_TITLE_LENGTH)
-        : `${draggedTabIds.length} tabs`;
-      document.body.appendChild(ghost);
-      e.dataTransfer.setDragImage(ghost, 0, 0);
-      // 移除 ghost 元素（下一幀後）
-      requestAnimationFrame(() => ghost.remove());
+        // 自訂 drag image
+        const ghost = document.createElement("div");
+        ghost.className = "drag-ghost";
+        ghost.textContent =
+          draggedTabIds.length === 1
+            ? escapeHtml(tab.title).substring(0, CONFIG.MAX_DRAG_TITLE_LENGTH)
+            : `${draggedTabIds.length} tabs`;
+        document.body.appendChild(ghost);
+        e.dataTransfer.setDragImage(ghost, 0, 0);
+        // 移除 ghost 元素（下一幀後）
+        requestAnimationFrame(() => ghost.remove());
 
-      e.dataTransfer.effectAllowed = "move";
-    });
+        e.dataTransfer.effectAllowed = "move";
+      });
 
-    item.addEventListener("dragend", () => {
-      item.classList.remove("dragging");
-    });
+      item.addEventListener("dragend", () => {
+        item.classList.remove("dragging");
+      });
 
-    tabsList.appendChild(item);
+      tabsList.appendChild(item);
     });
 
     // 更新未分組的分頁數量
     const ungroupedCount = tabsList.querySelectorAll(".tab-item").length;
     tabCount.textContent = ungroupedCount;
   } catch (error) {
-    console.error('Failed to load tabs:', error);
+    console.error("Failed to load tabs:", error);
     tabsList.innerHTML = '<p class="empty-msg">Error loading tabs</p>';
   }
 }
@@ -182,7 +287,7 @@ function bindGroupDragEvents(item, dropHandler) {
       loadTabs();
       loadGroups();
     } catch (error) {
-      console.error('Failed to drop tabs:', error);
+      console.error("Failed to drop tabs:", error);
     }
   });
 }
@@ -195,23 +300,24 @@ async function loadGroups() {
     });
     groupsList.innerHTML = "";
 
-  if (groups.length === 0) {
-    groupsList.innerHTML = '<p class="empty-msg">No groups yet</p>';
-    // Still add drop hint even when no groups
-  }
+    if (groups.length === 0) {
+      groupsList.innerHTML = '<p class="empty-msg">No groups yet</p>';
+      // Still add drop hint even when no groups
+    }
 
-  // Chrome 群組
-  for (const group of groups) {
-    const tabs = await chrome.tabs.query({ groupId: group.id });
-    const item = document.createElement("div");
-    item.className = "group-item";
-    item.innerHTML = `
+    // Chrome 群組
+    for (const group of groups) {
+      const tabs = await chrome.tabs.query({ groupId: group.id });
+      const item = document.createElement("div");
+      item.className = "group-item";
+      item.innerHTML = `
       <div class="group-info">
         <span class="group-color-dot clickable" data-group-id="${group.id}" data-current-color="${group.color}" style="background:${COLOR_MAP[group.color] || "#5f6368"}"></span>
         <span class="group-title">${escapeHtml(group.title || "Untitled")}</span>
         <span class="group-tab-count">(${tabs.length} tabs)</span>
       </div>
       <div class="group-actions">
+        <button class="btn-save" data-group-id="${group.id}" aria-label="Save group">Save</button>
         <button class="btn-toggle" data-group-id="${group.id}" data-collapsed="${group.collapsed}">
           ${group.collapsed ? "Expand" : "Collapse"}
         </button>
@@ -219,115 +325,133 @@ async function loadGroups() {
       </div>
     `;
 
-    // 點擊色點 → 彈出顏色選擇器
-    const colorDot = item.querySelector(".group-color-dot");
-    colorDot.addEventListener("click", (e) => {
-      e.stopPropagation();
-      showColorPopup(colorDot, group.color, async (newColor) => {
+      // 點擊色點 → 彈出顏色選擇器
+      const colorDot = item.querySelector(".group-color-dot");
+      colorDot.addEventListener("click", (e) => {
+        e.stopPropagation();
+        showColorPopup(colorDot, group.color, async (newColor) => {
+          try {
+            await chrome.tabGroups.update(group.id, { color: newColor });
+            loadGroups();
+          } catch (error) {
+            console.error("Failed to update group color:", error);
+          }
+        });
+      });
+
+      // 雙擊名稱 → 編輯模式
+      const titleEl = item.querySelector(".group-title");
+      titleEl.addEventListener("dblclick", (e) => {
+        e.stopPropagation();
+        startEditGroupTitle(titleEl, group.title || "", async (newTitle) => {
+          try {
+            await chrome.tabGroups.update(group.id, { title: newTitle });
+            loadGroups();
+          } catch (error) {
+            console.error("Failed to update group title:", error);
+          }
+        });
+      });
+
+      // 展開 / 摺疊
+      item.querySelector(".btn-toggle").addEventListener("click", async (e) => {
         try {
-          await chrome.tabGroups.update(group.id, { color: newColor });
+          const groupId = Number(e.target.dataset.groupId);
+          const isCollapsed = e.target.dataset.collapsed === "true";
+          await chrome.tabGroups.update(groupId, { collapsed: !isCollapsed });
           loadGroups();
         } catch (error) {
-          console.error('Failed to update group color:', error);
+          console.error("Failed to toggle group:", error);
         }
       });
-    });
 
-    // 雙擊名稱 → 編輯模式
-    const titleEl = item.querySelector(".group-title");
-    titleEl.addEventListener("dblclick", (e) => {
-      e.stopPropagation();
-      startEditGroupTitle(titleEl, group.title || "", async (newTitle) => {
+      // 儲存群組
+      item.querySelector(".btn-save").addEventListener("click", async (e) => {
         try {
-          await chrome.tabGroups.update(group.id, { title: newTitle });
-          loadGroups();
+          const groupId = Number(e.target.dataset.groupId);
+          await saveGroup(
+            groupId,
+            group.title || "Untitled",
+            group.color,
+            tabs,
+          );
+          loadSavedGroups();
         } catch (error) {
-          console.error('Failed to update group title:', error);
+          console.error("Failed to save group:", error);
         }
       });
+
+      // 解散群組
+      item
+        .querySelector(".btn-ungroup")
+        .addEventListener("click", async (e) => {
+          try {
+            const groupId = Number(e.target.dataset.groupId);
+            const groupTabs = await chrome.tabs.query({ groupId });
+            const tabIds = groupTabs.map((t) => t.id);
+            await chrome.tabs.ungroup(tabIds);
+            loadGroups();
+            loadTabs();
+          } catch (error) {
+            console.error("Failed to ungroup:", error);
+          }
+        });
+
+      // 拖曳放入 Chrome 群組
+      bindGroupDragEvents(item, async () => {
+        await chrome.tabs.group({ tabIds: draggedTabIds, groupId: group.id });
+      });
+
+      groupsList.appendChild(item);
+    }
+
+    // Drop zone hint
+    const dropHint = document.createElement("div");
+    dropHint.className = "drop-zone-hint";
+    dropHint.textContent = ":: Drag tabs here ::";
+
+    // Drop zone drag events
+    dropHint.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
     });
 
-    // 展開 / 摺疊
-    item.querySelector(".btn-toggle").addEventListener("click", async (e) => {
-      try {
-        const groupId = Number(e.target.dataset.groupId);
-        const isCollapsed = e.target.dataset.collapsed === "true";
-        await chrome.tabGroups.update(groupId, { collapsed: !isCollapsed });
-        loadGroups();
-      } catch (error) {
-        console.error('Failed to toggle group:', error);
+    dropHint.addEventListener("dragenter", (e) => {
+      e.preventDefault();
+      dropHint.classList.add("drag-over");
+    });
+
+    dropHint.addEventListener("dragleave", (e) => {
+      if (!dropHint.contains(e.relatedTarget)) {
+        dropHint.classList.remove("drag-over");
       }
     });
 
-    // 解散群組
-    item.querySelector(".btn-ungroup").addEventListener("click", async (e) => {
-      try {
-        const groupId = Number(e.target.dataset.groupId);
-        const groupTabs = await chrome.tabs.query({ groupId });
-        const tabIds = groupTabs.map(t => t.id);
-        await chrome.tabs.ungroup(tabIds);
-        loadGroups();
-        loadTabs();
-      } catch (error) {
-        console.error('Failed to ungroup:', error);
-      }
-    });
-
-    // 拖曳放入 Chrome 群組
-    bindGroupDragEvents(item, async () => {
-      await chrome.tabs.group({ tabIds: draggedTabIds, groupId: group.id });
-    });
-
-    groupsList.appendChild(item);
-  }
-
-  // Drop zone hint
-  const dropHint = document.createElement("div");
-  dropHint.className = "drop-zone-hint";
-  dropHint.textContent = ":: Drop tabs here ::";
-
-  // Drop zone drag events
-  dropHint.addEventListener("dragover", (e) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
-  });
-
-  dropHint.addEventListener("dragenter", (e) => {
-    e.preventDefault();
-    dropHint.classList.add("drag-over");
-  });
-
-  dropHint.addEventListener("dragleave", (e) => {
-    if (!dropHint.contains(e.relatedTarget)) {
+    dropHint.addEventListener("drop", async (e) => {
+      e.preventDefault();
       dropHint.classList.remove("drag-over");
-    }
-  });
+      if (draggedTabIds.length === 0) return;
 
-  dropHint.addEventListener("drop", async (e) => {
-    e.preventDefault();
-    dropHint.classList.remove("drag-over");
-    if (draggedTabIds.length === 0) return;
+      try {
+        // Create new group with dropped tabs
+        const groupId = await chrome.tabs.group({ tabIds: draggedTabIds });
+        await chrome.tabGroups.update(groupId, {
+          title: "New Group",
+          color: "blue",
+          collapsed: true,
+        });
 
-    try {
-      // Create new group with dropped tabs
-      const groupId = await chrome.tabs.group({ tabIds: draggedTabIds });
-      await chrome.tabGroups.update(groupId, {
-        title: "New Group",
-        color: "blue",
-        collapsed: true,
-      });
-
-      draggedTabIds = [];
-      loadTabs();
-      loadGroups();
-    } catch (error) {
-      console.error('Failed to create group:', error);
-    }
-  });
+        draggedTabIds = [];
+        loadTabs();
+        loadGroups();
+      } catch (error) {
+        console.error("Failed to create group:", error);
+      }
+    });
 
     groupsList.appendChild(dropHint);
   } catch (error) {
-    console.error('Failed to load groups:', error);
+    console.error("Failed to load groups:", error);
     groupsList.innerHTML = '<p class="empty-msg">Error loading groups</p>';
   }
 }
@@ -364,10 +488,20 @@ function showColorPopup(anchorEl, currentColor, onSelect) {
   popup.setAttribute("aria-label", "Select group color");
 
   // 8 種顏色選項
-  const colors = ["blue", "red", "yellow", "green", "pink", "purple", "cyan", "orange"];
+  const colors = [
+    "blue",
+    "red",
+    "yellow",
+    "green",
+    "pink",
+    "purple",
+    "cyan",
+    "orange",
+  ];
   colors.forEach((color, index) => {
     const option = document.createElement("span");
-    option.className = "color-option" + (color === currentColor ? " selected" : "");
+    option.className =
+      "color-option" + (color === currentColor ? " selected" : "");
     option.style.background = COLOR_MAP[color];
     option.dataset.color = color;
     option.setAttribute("role", "option");
@@ -432,7 +566,7 @@ function showColorPopup(anchorEl, currentColor, onSelect) {
   }
 
   // 垂直置中對齊
-  let top = anchorRect.top + (anchorRect.height / 2) - (popupRect.height / 2);
+  let top = anchorRect.top + anchorRect.height / 2 - popupRect.height / 2;
   if (top < 0) top = 4;
   if (top + popupRect.height > window.innerHeight) {
     top = window.innerHeight - popupRect.height - 4;
@@ -529,4 +663,305 @@ function toggleTheme() {
 
 function updateThemeIcon(theme) {
   themeToggle.textContent = theme === "light" ? "☀" : "☾";
+}
+
+// ===== Saved Groups =====
+
+// 儲存群組到 storage
+async function saveGroup(groupId, title, color, tabs) {
+  const savedGroups = await getSavedGroups();
+
+  const groupData = {
+    id: Date.now(), // 使用時間戳作為唯一 ID
+    title: title,
+    color: color,
+    urls: tabs.map((tab) => ({
+      url: tab.url,
+      title: tab.title,
+    })),
+    savedAt: new Date().toISOString(),
+  };
+
+  savedGroups.push(groupData);
+  await chrome.storage.local.set({ savedGroups });
+}
+
+// 從 storage 取得已儲存的群組
+async function getSavedGroups() {
+  const result = await chrome.storage.local.get("savedGroups");
+  return result.savedGroups || [];
+}
+
+// 載入並顯示已儲存的群組
+async function loadSavedGroups() {
+  try {
+    const savedGroups = await getSavedGroups();
+    savedGroupsList.innerHTML = "";
+    savedCount.textContent = savedGroups.length;
+
+    if (savedGroups.length === 0) {
+      savedGroupsList.innerHTML = '<p class="empty-msg">No saved groups</p>';
+      return;
+    }
+
+    for (const group of savedGroups) {
+      const item = document.createElement("div");
+      item.className = "group-item saved-group";
+      item.innerHTML = `
+        <div class="group-info">
+          <span class="group-color-dot" style="background:${COLOR_MAP[group.color] || "#5f6368"}"></span>
+          <span class="group-title">${escapeHtml(group.title)}</span>
+          <span class="group-tab-count">(${group.urls.length} tabs)</span>
+        </div>
+        <div class="group-actions">
+          <button class="btn-share" data-group-id="${group.id}" aria-label="Share group">Share</button>
+          <button class="btn-restore" data-group-id="${group.id}" aria-label="Restore group">Restore</button>
+          <button class="btn-danger btn-delete" data-group-id="${group.id}" aria-label="Delete saved group">Delete</button>
+        </div>
+      `;
+
+      // 分享群組
+      item.querySelector(".btn-share").addEventListener("click", async (e) => {
+        const btn = e.target;
+        const result = generateShareData(group);
+
+        if (!result.success) {
+          btn.textContent = "Too large!";
+          btn.classList.add("btn-error");
+          setTimeout(() => {
+            btn.textContent = "Share";
+            btn.classList.remove("btn-error");
+          }, 2000);
+          return;
+        }
+
+        try {
+          await navigator.clipboard.writeText(result.text);
+          btn.textContent = "Copied!";
+          setTimeout(() => {
+            btn.textContent = "Share";
+          }, 2000);
+        } catch (error) {
+          console.error("Failed to copy:", error);
+          btn.textContent = "Error";
+          setTimeout(() => {
+            btn.textContent = "Share";
+          }, 2000);
+        }
+      });
+
+      // 還原群組
+      item.querySelector(".btn-restore").addEventListener("click", async () => {
+        try {
+          await restoreGroup(group);
+        } catch (error) {
+          console.error("Failed to restore group:", error);
+        }
+      });
+
+      // 刪除已儲存的群組
+      item.querySelector(".btn-delete").addEventListener("click", async () => {
+        try {
+          await deleteSavedGroup(group.id);
+          loadSavedGroups();
+        } catch (error) {
+          console.error("Failed to delete saved group:", error);
+        }
+      });
+
+      savedGroupsList.appendChild(item);
+    }
+  } catch (error) {
+    console.error("Failed to load saved groups:", error);
+    savedGroupsList.innerHTML =
+      '<p class="empty-msg">Error loading saved groups</p>';
+  }
+}
+
+// 刪除已儲存的群組
+async function deleteSavedGroup(groupId) {
+  const savedGroups = await getSavedGroups();
+  const filtered = savedGroups.filter((g) => g.id !== groupId);
+  await chrome.storage.local.set({ savedGroups: filtered });
+}
+
+// ===== Share Group =====
+
+// 產生分享內容（JSON 格式，可直接匯入）
+function generateShareData(group) {
+  const data = {
+    title: group.title,
+    color: group.color,
+    urls: group.urls.map((u) => u.url),
+  };
+
+  try {
+    const jsonStr = JSON.stringify(data);
+    const encoded = btoa(unescape(encodeURIComponent(jsonStr)));
+
+    // 檢查長度（用於未來 URL 分享）
+    if (encoded.length > CONFIG.MAX_SHARE_URL_LENGTH) {
+      return {
+        success: false,
+        reason: "too_long",
+        urlCount: group.urls.length,
+      };
+    }
+
+    // 產生可分享的文字格式（使用實際換行符）
+    const lines = [
+      `[Tab Group: ${group.title}]`,
+      ...group.urls.map((u) => u.url),
+    ];
+    const shareText = lines.join("\r\n");
+
+    return {
+      success: true,
+      text: shareText,
+      encoded: encoded,
+    };
+  } catch (error) {
+    console.error("Failed to generate share data:", error);
+    return {
+      success: false,
+      reason: "error",
+    };
+  }
+}
+
+// 從分享資料還原群組
+function parseShareData(encoded) {
+  try {
+    const jsonStr = decodeURIComponent(escape(atob(encoded)));
+    return JSON.parse(jsonStr);
+  } catch (error) {
+    console.error("Failed to parse share data:", error);
+    return null;
+  }
+}
+
+// ===== Export / Import =====
+
+// 匯出已儲存的群組為 JSON 檔案
+async function exportSavedGroups() {
+  try {
+    const savedGroups = await getSavedGroups();
+
+    if (savedGroups.length === 0) {
+      showPixelModal("No saved groups to export");
+      return;
+    }
+
+    const exportData = {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      groups: savedGroups,
+    };
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+
+    // 產生檔名（包含群組名稱）
+    const date = new Date().toISOString().slice(0, 10);
+    const sanitizeFilename = (name) =>
+      name.replace(/[<>:"/\\|?*]/g, "_").substring(0, 50);
+
+    let filename;
+    if (savedGroups.length === 1) {
+      filename = `tab-groups-${sanitizeFilename(savedGroups[0].title)}-${date}.json`;
+    } else {
+      filename = `tab-groups-${sanitizeFilename(savedGroups[0].title)}-等${savedGroups.length}個-${date}.json`;
+    }
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+
+    URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error("Failed to export:", error);
+    showPixelModal("Failed to export groups");
+  }
+}
+
+// 處理匯入檔案
+async function handleImportFile(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  try {
+    const text = await file.text();
+    const importData = JSON.parse(text);
+
+    // 驗證資料格式
+    if (!importData.groups || !Array.isArray(importData.groups)) {
+      showPixelModal("Invalid file format");
+      return;
+    }
+
+    // 取得現有群組
+    const existingGroups = await getSavedGroups();
+
+    // 合併群組（避免重複）
+    let importedCount = 0;
+    for (const group of importData.groups) {
+      // 驗證群組資料
+      if (!group.title || !group.urls || !Array.isArray(group.urls)) {
+        continue;
+      }
+
+      // 產生新的 ID 避免衝突
+      const newGroup = {
+        id: Date.now() + importedCount,
+        title: group.title,
+        color: group.color || "blue",
+        urls: group.urls,
+        savedAt: group.savedAt || new Date().toISOString(),
+      };
+
+      existingGroups.push(newGroup);
+      importedCount++;
+    }
+
+    // 儲存
+    await chrome.storage.local.set({ savedGroups: existingGroups });
+
+    // 重新載入
+    loadSavedGroups();
+
+    showPixelModal(`Imported ${importedCount} group(s) successfully`);
+  } catch (error) {
+    console.error("Failed to import:", error);
+    showPixelModal("Failed to import: Invalid JSON file");
+  }
+
+  // 清除 file input 以便重複選擇同一檔案
+  e.target.value = "";
+}
+
+// 還原群組（開啟所有網址並建立群組）
+async function restoreGroup(group) {
+  // 開啟所有網址
+  const tabIds = [];
+  for (const urlData of group.urls) {
+    const tab = await chrome.tabs.create({ url: urlData.url, active: false });
+    tabIds.push(tab.id);
+  }
+
+  // 建立群組
+  if (tabIds.length > 0) {
+    const groupId = await chrome.tabs.group({ tabIds });
+    await chrome.tabGroups.update(groupId, {
+      title: group.title,
+      color: group.color,
+      collapsed: true,
+    });
+  }
+
+  // 重新載入
+  loadTabs();
+  loadGroups();
 }
