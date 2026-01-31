@@ -1,6 +1,16 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
-  <rect x="4" y="4" width="120" height="120" rx="16" fill="#1a73e8"/>
-  <rect x="24" y="28" width="80" height="14" rx="7" fill="#fff"/>
-  <rect x="24" y="52" width="80" height="14" rx="7" fill="#fff" opacity="0.7"/>
-  <rect x="24" y="76" width="56" height="14" rx="7" fill="#fff" opacity="0.4"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" shape-rendering="crispEdges">
+  <!-- Border -->
+  <rect x="4" y="4" width="120" height="120" fill="#1a1a1a"/>
+  <!-- Background -->
+  <rect x="8" y="8" width="112" height="112" fill="#4a90d9"/>
+  <!-- Inner highlight -->
+  <rect x="8" y="8" width="112" height="4" fill="#6ab0ff"/>
+  <rect x="8" y="8" width="4" height="112" fill="#6ab0ff"/>
+  <!-- Inner shadow -->
+  <rect x="8" y="116" width="112" height="4" fill="#3a7bc8"/>
+  <rect x="116" y="8" width="4" height="112" fill="#3a7bc8"/>
+  <!-- Pixel tabs -->
+  <rect x="24" y="32" width="64" height="16" fill="#fff"/>
+  <rect x="24" y="56" width="80" height="16" fill="#fff" opacity="0.8"/>
+  <rect x="24" y="80" width="48" height="16" fill="#fff" opacity="0.5"/>
 </svg>
