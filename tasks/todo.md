@@ -1,170 +1,246 @@
-# Tab Manager Extension - 開發計畫
+# Tab Group Manager 商業計劃
 
-## 目標
+## 一、產品定位
 
-建立一個 Chrome 擴充功能，讓使用者可以透過彈出視窗查看所有分頁，並將分頁手動分組、命名，摺疊群組後讓分頁列保持乾淨。
+**目標用戶：** 需要管理大量瀏覽器分頁的工作者（開發者、研究員、行銷人員等）
 
-## 開發項目
+**核心價值：** 簡單直覺的分頁群組管理工具
 
-### 第一階段：基礎架構
-
-- [x] 1. 建立 `manifest.json`（Manifest V3，宣告權限：tabs、tabGroups）
-- [x] 2. 建立 `popup.html` — 彈出視窗的 HTML 骨架
-- [x] 3. 建立 `popup.css` — 基本樣式（分頁清單、勾選框、按鈕）
-- [x] 4. 建立 `popup.js` — 彈出視窗的核心邏輯
-
-### 第二階段：核心功能
-
-- [x] 5. 實作「列出所有分頁」— 使用 `chrome.tabs.query()` 取得所有分頁，顯示 favicon + 標題
-- [x] 6. 實作「勾選分頁」— 每個分頁前加 checkbox，支援多選
-- [x] 7. 實作「建立群組」— 輸入群組名稱 + 選擇顏色 → 呼叫 `chrome.tabs.group()` + `chrome.tabGroups.update()`
-- [x] 8. 實作「摺疊群組」— 建立群組後自動摺疊，讓分頁列變乾淨
-
-### 第三階段：群組管理
-
-- [x] 9. 顯示現有群組清單 — 使用 `chrome.tabGroups.query()` 列出已建立的群組
-- [x] 10. 實作「解散群組」— 將群組內分頁取消群組 (`chrome.tabs.ungroup()`)
-- [x] 11. 實作「展開/摺疊群組」切換按鈕
-
-### 第四階段：圖示與收尾
-
-- [x] 12. 製作擴充功能圖示（16x16、48x48、128x128）
-- [ ] 13. 整體測試與修正
+**差異化優勢：**
+- 比 Workona 更簡單、更便宜
+- 比 OneTab 功能更豐富
+- 比 Toby 不需要強制註冊帳號
 
 ---
 
-## 最終檔案結構
+## 二、競品分析
+
+| 競品 | 定價 | 優點 | 缺點 |
+|------|------|------|------|
+| Workona | $6-8/月 | 功能完整、團隊協作 | 太貴、太複雜 |
+| Toby | $4.50/月 | UI 好看、有 AI | 要註冊帳號 |
+| Side Space | $39 終身 | AI 分組、一次買斷 | 無免費版 |
+| OneTab | 免費 | 極簡、記憶體優化 | 功能太陽春 |
+
+---
+
+## 三、定價策略
+
+### 方案一覽
+
+| 方案 | 價格 | 目標用戶 |
+|------|------|----------|
+| **Free** | $0 | 一般用戶，建立用戶基礎 |
+| **Pro** | $4/月 或 $35 終身 | 重度用戶，需要 AI 和同步 |
+
+### 為什麼這個價格？
+
+- 比 Toby ($4.50/月) 略低，有價格優勢
+- 提供終身方案，降低決策門檻
+- 初期目標：累積用戶 > 賺錢
+
+---
+
+## 四、功能規劃
+
+### Free 版（零成本功能）
+
+| 功能 | 說明 | 技術 |
+|------|------|------|
+| 手動分組 | 拖曳分頁建立/加入群組 | 已完成 |
+| 群組管理 | 展開/摺疊、改名、改色、解散 | 已完成 |
+| 主題切換 | 深色/淺色模式 | 已完成 |
+| 群組儲存/還原 | 儲存群組設定，之後一鍵還原 | chrome.storage.local |
+| 匯出/匯入 | 下載/上傳 JSON 備份檔 | 純本地 |
+| 快速分享 | 產生分享連結（動態計算長度限制） | URL 編碼，零成本 |
+| 使用統計 | 分頁數量趨勢、常用網站 | 本地計算 + CSS 圖表 |
+| 鍵盤快捷鍵 | 快速操作 | 純前端 |
+
+### Pro 版（有成本功能）
+
+| 功能 | 說明 | 成本來源 |
+|------|------|----------|
+| AI 自動分組 | 根據分頁標題智慧分類 | Gemini API |
+| 雲端同步 | 跨裝置同步群組設定 | 後端資料庫 |
+| 無限分享 | 不受 URL 長度限制的分享連結 | 後端儲存 |
+| 優先支援 | 問題優先處理 | 人力成本 |
+
+---
+
+## 五、技術架構
+
+### 付款系統：ExtensionPay
+
+- 不需要自建後端
+- 整合 Stripe 金流
+- 內建登入、訂閱管理
+- 抽成：5%（+ Stripe 2.9% + $0.30/筆）
+
+### AI 功能：Gemini API + Cloudflare Worker
 
 ```
-tab-manager-extension/
-├── manifest.json
-├── popup.html
-├── popup.js
-├── popup.css
-├── icons/
-│   ├── icon16.png
-│   ├── icon48.png
-│   └── icon128.png
-├── tasks/
-│   └── todo.md
-└── claude.md
+用戶 → Extension → Cloudflare Worker → Gemini API
+                         ↓
+                   回傳分組建議
 ```
 
-### 第五階段：空群組建立 + 拖曳分頁至群組
+- Gemini Flash：$0.15/百萬 tokens（最便宜）
+- 單次分組成本：約 $0.00026
+- Free 用戶：每月 5 次體驗
+- Pro 用戶：無限制
 
-- [x] 14. manifest.json：加入 `storage` 權限
-- [x] 15. popup.js：新增 pendingGroups 狀態與 storage 讀寫
-- [x] 16. popup.js：修改 createGroup() 允許建立空群組（只需名稱）
-- [x] 17. popup.js：修改 updateCreateButtonState() 只檢查名稱
-- [x] 18. popup.js：修改 loadGroups() 同時顯示 Chrome 群組 + 待用群組
-- [x] 19. popup.js：在 loadTabs() 中加上 draggable 與 dragstart 事件
-- [x] 20. popup.js：在群組項目上綁定 dragover/dragenter/dragleave/drop 事件
-- [x] 21. popup.css：新增拖曳相關樣式（dragging、drag-over、drag-ghost）
-- [x] 22. popup.html：移除建立按鈕的 disabled 預設屬性
+### 雲端同步：Firebase 或 Supabase
+
+- 使用 ExtensionPay 的用戶身份
+- 儲存群組設定 JSON
+- 免費額度足夠初期使用
+
+### 分享連結
+
+| 版本 | 技術 | 限制 |
+|------|------|------|
+| Free | URL 編碼（Base64） | 動態計算，約 15-20 個網址 |
+| Pro | 短連結 + 後端儲存 | 無限制 |
+
+---
+
+## 六、成本分析
+
+### 初期投入（一次性）
+
+| 項目 | 費用 |
+|------|------|
+| Chrome Web Store 開發者帳號 | $5 |
+| **總計** | **$5** |
+
+### 營運成本（有收入後才產生）
+
+| 項目 | 費用 |
+|------|------|
+| ExtensionPay 抽成 | 5% |
+| Stripe 手續費 | 2.9% + $0.30/筆 |
+| Gemini API | 免費額度內，超出約 $0.03/100 次 |
+| Cloudflare Worker | 免費額度內 |
+| Firebase/Supabase | 免費額度內 |
+
+### 收入估算（$4/月訂閱）
+
+| 項目 | 金額 |
+|------|------|
+| 用戶付款 | $4.00 |
+| Stripe 手續費 | -$0.42 |
+| ExtensionPay 抽成 | -$0.20 |
+| AI API 成本（估計） | -$0.05 |
+| **淨收入** | **$3.33（83%）** |
+
+---
+
+## 七、開發階段
+
+### Phase 1：完善 Free 版並上架
+
+目標：建立用戶基礎
+
+- [ ] **功能開發**
+  - [ ] 群組儲存/還原功能
+  - [ ] 匯出/匯入 JSON
+  - [ ] 快速分享（URL 編碼 + 動態長度檢查）
+  - [ ] 使用統計（本地 + CSS 圖表）
+  - [ ] 鍵盤快捷鍵
+
+- [ ] **上架準備**
+  - [ ] Chrome Web Store 描述文案
+  - [ ] Store 截圖（至少 3 張）
+  - [ ] 宣傳圖片（1280x800）
+  - [ ] 隱私權政策頁面
+  - [ ] 支付開發者費用（$5）
+
+- [ ] **Landing Page**
+  - [ ] 使用 Carrd 或 GitHub Pages
+  - [ ] 功能介紹 + 截圖
+  - [ ] Free vs Pro 比較表
+  - [ ] CTA 連結到 Chrome Web Store
+
+### Phase 2：串接付款（ExtensionPay）
+
+目標：開始有收入來源
+
+- [ ] **設定**
+  - [ ] 註冊 ExtensionPay 帳號
+  - [ ] 註冊 Stripe 帳號並完成驗證
+  - [ ] 建立定價方案（$4/月、$35 終身）
+
+- [ ] **程式碼整合**
+  - [ ] 安裝 ExtPay library
+  - [ ] 付費狀態檢查邏輯
+  - [ ] 「Upgrade to Pro」按鈕
+  - [ ] Pro 功能鎖定/解鎖機制
+
+- [ ] **UI 調整**
+  - [ ] 顯示帳號狀態
+  - [ ] Pro 功能加鎖頭圖示（Free 用戶）
+  - [ ] 設定頁面（管理訂閱）
+
+### Phase 3：AI 自動分組
+
+目標：Pro 版核心賣點
+
+- [ ] **後端**
+  - [ ] 建立 Cloudflare Worker
+  - [ ] 串接 Gemini API
+  - [ ] 設計分組 prompt
+
+- [ ] **前端**
+  - [ ] 「AI Auto Group」按鈕
+  - [ ] 分組建議預覽 UI
+  - [ ] 確認後套用分組
+  - [ ] 載入中狀態
+
+- [ ] **限制機制**
+  - [ ] Free 用戶：每月 5 次
+  - [ ] Pro 用戶：無限制
+  - [ ] 使用次數追蹤
+
+### Phase 4：雲端同步
+
+目標：Pro 版進階功能
+
+- [ ] **後端**
+  - [ ] 選擇 Firebase 或 Supabase
+  - [ ] 設計資料結構
+  - [ ] API 端點
+
+- [ ] **前端**
+  - [ ] 同步開關
+  - [ ] 同步狀態指示
+  - [ ] 衝突處理 UI
+
+---
+
+## 八、關鍵指標
+
+| 階段 | 目標 |
+|------|------|
+| Phase 1 完成後 | 1,000 安裝數 |
+| Phase 2 完成後 | 2% 付費轉換率（20 人）|
+| 6 個月後 | 5,000 安裝、100 付費用戶 |
+| 12 個月後 | 10,000 安裝、300 付費用戶 |
+
+**月收入目標（12 個月後）：** 300 × $3.33 = **$999/月**
+
+---
+
+## 九、風險與對策
+
+| 風險 | 對策 |
+|------|------|
+| 用戶量不足 | 專注 SEO、Reddit/Twitter 推廣 |
+| 付費轉換率低 | 優化 Free → Pro 的升級提示時機 |
+| AI API 成本超支 | 使用最便宜的模型、設定用量上限 |
+| 競品降價 | 強調隱私優先、簡單好用的差異化 |
+
+---
 
 ## Review
 
-### 第五階段變更摘要
-
-**修改了 4 個檔案：**
-
-1. **manifest.json** — 新增 `storage` 權限，用於持久化待用群組資料。
-
-2. **popup.html** — 移除建立按鈕的 `disabled` 預設屬性，改由 JS 動態控制（只檢查名稱）。
-
-3. **popup.css** — 新增 4 個樣式：
-   - `.tab-item.dragging`：拖曳中分頁半透明
-   - `.group-item.drag-over`：群組被 hover 時藍色邊框 + 淺藍背景
-   - `.drag-ghost`：自訂拖曳提示（藍色膠囊）
-   - `.group-item.pending .group-tab-count`：待用群組的斜體灰色標示
-
-4. **popup.js** — 主要邏輯改動：
-   - 新增 `pendingGroups` / `draggedTabIds` 狀態
-   - 新增 `loadPendingGroups()` / `savePendingGroups()` 讀寫 storage
-   - `createGroup()`：有勾選分頁時建立 Chrome 群組，無勾選時建立待用群組
-   - `updateCreateButtonState()`：只檢查名稱，不再要求勾選分頁
-   - `loadGroups()`：同時渲染 Chrome 群組 + 待用群組，待用群組支援刪除按鈕
-   - `loadTabs()`：每個分頁加上 `draggable`，`dragstart` 時判斷是否拖曳多個已勾選分頁
-   - 新增 `bindGroupDragEvents()` 統一處理群組項目的 dragover/dragenter/dragleave/drop
-   - drop 到 Chrome 群組 → `chrome.tabs.group({tabIds, groupId})`
-   - drop 到待用群組 → 建立新 Chrome 群組 + 設定名稱顏色 + 從 pendingGroups 移除
-
----
-
-## 第六階段：移除建立時顏色選擇，改為點擊圓點更改顏色
-
-### 需求
-1. 建立群組時移除顏色選擇器，預設使用藍色
-2. 群組建立後，點擊群組的圓形色點可彈出 8 色選擇器
-3. 選擇顏色後立即更新群組顏色
-
-### 待辦事項
-
-- [x] 23. popup.html：移除頂部顏色選擇器 `<div class="color-picker">`
-- [x] 24. popup.css：移除 `.color-picker` 和 `.color-dot` 樣式，新增 `.color-popup` 彈出式選擇器樣式
-- [x] 25. popup.js：移除 `selectedColor` 變數與 `colorPicker` 相關邏輯
-- [x] 26. popup.js：修改 `createGroup()` 使用固定顏色 `"blue"`
-- [x] 27. popup.js：新增 `showColorPopup()` 函數與色點點擊事件
-- [x] 28. popup.js：在 `loadGroups()` 為 Chrome 群組和待用群組的色點加上點擊事件
-
-### Review
-
-**修改了 3 個檔案：**
-
-1. **popup.html**
-   - 移除 `<div class="color-picker">` 整段（包含 8 個顏色圓點）
-   - 建立群組介面簡化為：名稱輸入框 + 建立按鈕
-
-2. **popup.css**
-   - 移除 `.color-picker` 和 `.color-dot` 相關樣式（約 20 行）
-   - 新增 `.group-color-dot.clickable`：hover 放大效果 + cursor pointer
-   - 新增 `.color-popup`：彈出式 8 色選擇器容器（絕對定位、白底、圓角、陰影）
-   - 新增 `.color-popup .color-option`：每個顏色選項的樣式（hover 放大、已選取邊框）
-
-3. **popup.js**
-   - 移除 `selectedColor` 狀態變數
-   - 移除 `colorPicker` DOM 參照和點擊事件
-   - 新增 `activeColorPopup` 狀態追蹤目前開啟的選擇器
-   - `createGroup()`：顏色固定為 `"blue"`
-   - `loadGroups()`：Chrome 群組和待用群組的色點加上 `clickable` class 和點擊事件
-   - 新增 `showColorPopup(anchorEl, currentColor, onSelect)`：
-     - 建立彈出選擇器 DOM
-     - 智慧定位（優先顯示在色點右側，超出則顯示左側）
-     - 點擊顏色 → 執行 callback → 關閉彈出
-   - 新增 `closeColorPopup()`：關閉彈出選擇器
-   - `bindEvents()`：新增點擊外部區域關閉選擇器的邏輯
-
----
-
-## 第七階段：雙擊重新命名群組
-
-### 需求
-1. 雙擊群組名稱進入編輯模式
-2. 按 Enter 或失去焦點儲存新名稱
-3. 按 Esc 取消編輯
-4. hover 時顯示游標變化提示可編輯
-
-### 待辦事項
-
-- [x] 29. popup.css：新增 `.group-title` hover 樣式（游標變化、淺灰背景）
-- [x] 30. popup.css：新增 `.group-title-input` 編輯輸入框樣式
-- [x] 31. popup.js：為 Chrome 群組名稱加上雙擊事件
-- [x] 32. popup.js：為待用群組名稱加上雙擊事件
-- [x] 33. popup.js：新增 `startEditGroupTitle()` 函數處理編輯邏輯
-
-### Review
-
-**修改了 2 個檔案：**
-
-1. **popup.css**
-   - `.group-title`：新增 `cursor: text`、padding、hover 時淺灰背景，暗示可編輯
-   - `.group-title-input`：編輯輸入框樣式（藍色邊框、白底）
-
-2. **popup.js**
-   - Chrome 群組：為 `.group-title` 加上 `dblclick` 事件 → 呼叫 `chrome.tabGroups.update()` 更新名稱
-   - 待用群組：為 `.group-title` 加上 `dblclick` 事件 → 更新 `pendingGroups` 並儲存
-   - 新增 `startEditGroupTitle(titleEl, currentTitle, onSave)` 函數：
-     - 建立輸入框取代原本的標題元素
-     - 自動選取文字
-     - Enter 儲存、Esc 取消、blur 儲存
-     - 名稱有變更時才執行 onSave callback
+_（各階段完成後填寫）_
