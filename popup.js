@@ -28,6 +28,8 @@ const CONFIG = {
   DEFAULT_ICON: "icons/icon16.png",
   ALLOWED_PROTOCOLS: ["http:", "https:", "chrome:", "chrome-extension:"],
   MAX_SHARE_URL_LENGTH: 1800, // 安全的 URL 長度限制
+  MAX_STORAGE_BYTES: 5 * 1024 * 1024, // 5MB storage limit
+  STORAGE_WARNING_THRESHOLD: 0.8, // Warn at 80% usage
 };
 
 // ===== 顏色對應表 =====
@@ -369,15 +371,18 @@ async function loadGroups() {
       item.querySelector(".btn-save").addEventListener("click", async (e) => {
         try {
           const groupId = Number(e.target.dataset.groupId);
-          await saveGroup(
+          const saved = await saveGroup(
             groupId,
             group.title || "Untitled",
             group.color,
             tabs,
           );
-          loadSavedGroups();
+          if (saved) {
+            loadSavedGroups();
+          }
         } catch (error) {
           console.error("Failed to save group:", error);
+          showPixelModal("Failed to save group.");
         }
       });
 
@@ -475,6 +480,47 @@ function escapeHtml(text) {
   const div = document.createElement("div");
   div.textContent = text;
   return div.innerHTML;
+}
+
+// ===== 產生唯一 ID =====
+function generateUniqueId() {
+  return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+}
+
+// ===== 驗證 URL =====
+function isValidUrl(url) {
+  if (!url || typeof url !== "string") return false;
+  try {
+    const parsed = new URL(url);
+    return CONFIG.ALLOWED_PROTOCOLS.includes(parsed.protocol);
+  } catch {
+    return false;
+  }
+}
+
+// ===== 檢查 Storage 使用量 =====
+async function checkStorageQuota() {
+  try {
+    const data = await chrome.storage.local.get(null);
+    const usedBytes = new Blob([JSON.stringify(data)]).size;
+    const usageRatio = usedBytes / CONFIG.MAX_STORAGE_BYTES;
+    return {
+      usedBytes,
+      maxBytes: CONFIG.MAX_STORAGE_BYTES,
+      usageRatio,
+      isNearLimit: usageRatio >= CONFIG.STORAGE_WARNING_THRESHOLD,
+      isFull: usageRatio >= 0.95,
+    };
+  } catch (error) {
+    console.error("Failed to check storage quota:", error);
+    return {
+      usedBytes: 0,
+      maxBytes: CONFIG.MAX_STORAGE_BYTES,
+      usageRatio: 0,
+      isNearLimit: false,
+      isFull: false,
+    };
+  }
 }
 
 // ===== 彈出式顏色選擇器 =====
@@ -669,21 +715,56 @@ function updateThemeIcon(theme) {
 
 // 儲存群組到 storage
 async function saveGroup(groupId, title, color, tabs) {
+  // 檢查 storage 空間
+  const quota = await checkStorageQuota();
+  if (quota.isFull) {
+    showPixelModal("Storage is full. Please delete some saved groups.");
+    return false;
+  }
+
   const savedGroups = await getSavedGroups();
 
-  const groupData = {
-    id: Date.now(), // 使用時間戳作為唯一 ID
-    title: title,
-    color: color,
-    urls: tabs.map((tab) => ({
+  // 過濾無效的 URL
+  const validUrls = tabs
+    .filter((tab) => isValidUrl(tab.url))
+    .map((tab) => ({
       url: tab.url,
-      title: tab.title,
-    })),
+      title: tab.title || "Untitled",
+    }));
+
+  if (validUrls.length === 0) {
+    showPixelModal("No valid URLs to save.");
+    return false;
+  }
+
+  const groupData = {
+    id: generateUniqueId(),
+    title: title.substring(0, CONFIG.MAX_GROUP_TITLE_LENGTH),
+    color: color,
+    urls: validUrls,
     savedAt: new Date().toISOString(),
   };
 
   savedGroups.push(groupData);
-  await chrome.storage.local.set({ savedGroups });
+
+  try {
+    await chrome.storage.local.set({ savedGroups });
+
+    if (quota.isNearLimit) {
+      showPixelModal("Group saved. Warning: Storage is almost full.");
+    }
+    return true;
+  } catch (error) {
+    if (error.message?.includes("QUOTA_BYTES")) {
+      showPixelModal(
+        "Storage quota exceeded. Please delete some saved groups.",
+      );
+    } else {
+      showPixelModal("Failed to save group.");
+    }
+    console.error("Failed to save group:", error);
+    return false;
+  }
 }
 
 // 從 storage 取得已儲存的群組
@@ -844,6 +925,8 @@ function parseShareData(encoded) {
 
 // 匯出已儲存的群組為 JSON 檔案
 async function exportSavedGroups() {
+  let objectUrl = null;
+
   try {
     const savedGroups = await getSavedGroups();
 
@@ -861,7 +944,7 @@ async function exportSavedGroups() {
     const blob = new Blob([JSON.stringify(exportData, null, 2)], {
       type: "application/json",
     });
-    const url = URL.createObjectURL(blob);
+    objectUrl = URL.createObjectURL(blob);
 
     // 產生檔名（包含群組名稱）
     const date = new Date().toISOString().slice(0, 10);
@@ -876,14 +959,17 @@ async function exportSavedGroups() {
     }
 
     const a = document.createElement("a");
-    a.href = url;
+    a.href = objectUrl;
     a.download = filename;
     a.click();
-
-    URL.revokeObjectURL(url);
   } catch (error) {
     console.error("Failed to export:", error);
     showPixelModal("Failed to export groups");
+  } finally {
+    // 確保 URL 被釋放
+    if (objectUrl) {
+      URL.revokeObjectURL(objectUrl);
+    }
   }
 }
 
@@ -893,32 +979,80 @@ async function handleImportFile(e) {
   if (!file) return;
 
   try {
+    // 檢查 storage 空間
+    const quota = await checkStorageQuota();
+    if (quota.isFull) {
+      showPixelModal("Storage is full. Please delete some saved groups first.");
+      e.target.value = "";
+      return;
+    }
+
     const text = await file.text();
     const importData = JSON.parse(text);
 
     // 驗證資料格式
     if (!importData.groups || !Array.isArray(importData.groups)) {
       showPixelModal("Invalid file format");
+      e.target.value = "";
       return;
     }
 
     // 取得現有群組
     const existingGroups = await getSavedGroups();
 
+    // 驗證顏色是否有效
+    const validColors = Object.keys(COLOR_MAP);
+
     // 合併群組（避免重複）
     let importedCount = 0;
+    let skippedCount = 0;
     for (const group of importData.groups) {
       // 驗證群組資料
-      if (!group.title || !group.urls || !Array.isArray(group.urls)) {
+      if (!group.title || typeof group.title !== "string") {
+        skippedCount++;
+        continue;
+      }
+      if (!group.urls || !Array.isArray(group.urls)) {
+        skippedCount++;
+        continue;
+      }
+
+      // 過濾並驗證 URLs
+      const validUrls = group.urls
+        .filter((urlData) => {
+          if (typeof urlData === "string") {
+            return isValidUrl(urlData);
+          }
+          return (
+            urlData &&
+            typeof urlData.url === "string" &&
+            isValidUrl(urlData.url)
+          );
+        })
+        .map((urlData) => {
+          if (typeof urlData === "string") {
+            return { url: urlData, title: "Untitled" };
+          }
+          return {
+            url: urlData.url,
+            title:
+              typeof urlData.title === "string"
+                ? urlData.title.substring(0, 200)
+                : "Untitled",
+          };
+        });
+
+      if (validUrls.length === 0) {
+        skippedCount++;
         continue;
       }
 
       // 產生新的 ID 避免衝突
       const newGroup = {
-        id: Date.now() + importedCount,
-        title: group.title,
-        color: group.color || "blue",
-        urls: group.urls,
+        id: generateUniqueId(),
+        title: group.title.substring(0, CONFIG.MAX_GROUP_TITLE_LENGTH),
+        color: validColors.includes(group.color) ? group.color : "blue",
+        urls: validUrls,
         savedAt: group.savedAt || new Date().toISOString(),
       };
 
@@ -926,13 +1060,37 @@ async function handleImportFile(e) {
       importedCount++;
     }
 
+    if (importedCount === 0) {
+      showPixelModal("No valid groups found in file");
+      e.target.value = "";
+      return;
+    }
+
     // 儲存
-    await chrome.storage.local.set({ savedGroups: existingGroups });
+    try {
+      await chrome.storage.local.set({ savedGroups: existingGroups });
+    } catch (storageError) {
+      if (storageError.message?.includes("QUOTA_BYTES")) {
+        showPixelModal("Storage quota exceeded. Try importing fewer groups.");
+      } else {
+        showPixelModal("Failed to save imported groups");
+      }
+      console.error("Storage error:", storageError);
+      e.target.value = "";
+      return;
+    }
 
     // 重新載入
     loadSavedGroups();
 
-    showPixelModal(`Imported ${importedCount} group(s) successfully`);
+    let message = `Imported ${importedCount} group(s) successfully`;
+    if (skippedCount > 0) {
+      message += ` (${skippedCount} skipped)`;
+    }
+    if (quota.isNearLimit) {
+      message += ". Warning: Storage almost full.";
+    }
+    showPixelModal(message);
   } catch (error) {
     console.error("Failed to import:", error);
     showPixelModal("Failed to import: Invalid JSON file");
@@ -944,21 +1102,45 @@ async function handleImportFile(e) {
 
 // 還原群組（開啟所有網址並建立群組）
 async function restoreGroup(group) {
+  // 過濾有效的 URLs
+  const validUrls = group.urls.filter((urlData) => isValidUrl(urlData.url));
+
+  if (validUrls.length === 0) {
+    showPixelModal("No valid URLs to restore.");
+    return;
+  }
+
   // 開啟所有網址
   const tabIds = [];
-  for (const urlData of group.urls) {
-    const tab = await chrome.tabs.create({ url: urlData.url, active: false });
-    tabIds.push(tab.id);
+  let failedCount = 0;
+
+  for (const urlData of validUrls) {
+    try {
+      const tab = await chrome.tabs.create({ url: urlData.url, active: false });
+      tabIds.push(tab.id);
+    } catch (error) {
+      console.error("Failed to create tab for:", urlData.url, error);
+      failedCount++;
+    }
   }
 
   // 建立群組
   if (tabIds.length > 0) {
-    const groupId = await chrome.tabs.group({ tabIds });
-    await chrome.tabGroups.update(groupId, {
-      title: group.title,
-      color: group.color,
-      collapsed: true,
-    });
+    try {
+      const groupId = await chrome.tabs.group({ tabIds });
+      await chrome.tabGroups.update(groupId, {
+        title: group.title,
+        color: group.color,
+        collapsed: true,
+      });
+    } catch (error) {
+      console.error("Failed to create group:", error);
+      showPixelModal("Failed to create tab group.");
+    }
+  }
+
+  if (failedCount > 0) {
+    showPixelModal(`Restored with ${failedCount} failed tab(s).`);
   }
 
   // 重新載入
