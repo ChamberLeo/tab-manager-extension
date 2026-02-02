@@ -23,7 +23,7 @@ const pixelModalOk = document.getElementById("pixel-modal-ok");
 
 // ===== 常數設定 =====
 const CONFIG = {
-  MAX_GROUP_TITLE_LENGTH: 100,
+  MAX_GROUP_TITLE_LENGTH: 30,
   MAX_DRAG_TITLE_LENGTH: 30,
   DEFAULT_ICON: "icons/icon16.png",
   ALLOWED_PROTOCOLS: ["http:", "https:", "chrome:", "chrome-extension:"],
@@ -316,6 +316,7 @@ async function loadGroups() {
       <div class="group-info">
         <span class="group-color-dot clickable" data-group-id="${group.id}" data-current-color="${group.color}" style="background:${COLOR_MAP[group.color] || "#5f6368"}"></span>
         <span class="group-title">${escapeHtml(group.title || "Untitled")}</span>
+        <span class="group-edit-icon" title="Rename group">✎</span>
         <span class="group-tab-count">(${tabs.length} tabs)</span>
       </div>
       <div class="group-actions">
@@ -343,8 +344,9 @@ async function loadGroups() {
 
       // 雙擊名稱 → 編輯模式
       const titleEl = item.querySelector(".group-title");
-      titleEl.addEventListener("dblclick", (e) => {
-        e.stopPropagation();
+      const editIcon = item.querySelector(".group-edit-icon");
+
+      const startEdit = () => {
         startEditGroupTitle(titleEl, group.title || "", async (newTitle) => {
           try {
             await chrome.tabGroups.update(group.id, { title: newTitle });
@@ -353,6 +355,16 @@ async function loadGroups() {
             console.error("Failed to update group title:", error);
           }
         });
+      };
+
+      titleEl.addEventListener("dblclick", (e) => {
+        e.stopPropagation();
+        startEdit();
+      });
+
+      editIcon.addEventListener("click", (e) => {
+        e.stopPropagation();
+        startEdit();
       });
 
       // 展開 / 摺疊

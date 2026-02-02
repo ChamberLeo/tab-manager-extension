@@ -413,7 +413,7 @@ body {
 .group-info {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 5px;
   flex: 1;
   min-width: 0;
 }
@@ -488,6 +488,24 @@ body {
   background: var(--shadow-dark);
 }
 
+/* ===== Group Edit Icon ===== */
+.group-edit-icon {
+  opacity: 0;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--text-muted);
+  padding: 2px 4px;
+  transition: opacity 0.15s;
+}
+
+.group-info:hover .group-edit-icon {
+  opacity: 1;
+}
+
+.group-edit-icon:hover {
+  color: var(--accent);
+}
+
 /* ===== Group Title Input ===== */
 .group-title-input {
   font-family: "VT323", monospace;
@@ -506,7 +524,6 @@ body {
   font-size: 14px;
   color: var(--text-muted);
   flex-shrink: 0;
-  margin-left: 4px;
 }
 
 /* ===== Group Actions ===== */

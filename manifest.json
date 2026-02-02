@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Tab Group Manager",
   "version": "1.0.0",
-  "description": "輕鬆將分頁整理成群組，讓瀏覽器分頁列保持乾淨。",
+  "description": "Organize tabs into color-coded groups with drag & drop. Save, restore, and share your tab collections effortlessly.",
   "permissions": ["tabs", "tabGroups", "storage"],
   "action": {
     "default_popup": "popup.html",
