@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Tab Group Manager",
+  "name": "Tab Manager",
   "version": "1.0.0",
   "description": "Organize tabs into color-coded groups with drag & drop. Save, restore, and share your tab collections effortlessly.",
   "permissions": ["tabs", "tabGroups", "storage"],

@@ -1,69 +1,103 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Tab Group Manager</title>
-  <link rel="stylesheet" href="popup.css">
-</head>
-<body>
-  <!-- Header -->
-  <div class="header">
-    <div class="header-top">
-      <h1>Tab Manager</h1>
-      <button id="theme-toggle" class="theme-toggle" title="Toggle theme" aria-label="Toggle dark/light theme">☀</button>
-    </div>
-  </div>
-
-  <!-- Tab Navigation -->
-  <div class="tab-nav">
-    <button class="tab-nav-btn active" data-tab="groups">Groups</button>
-    <button class="tab-nav-btn" data-tab="saved">Saved <span id="saved-count" class="badge">0</span></button>
-  </div>
-
-  <!-- Groups Tab Content -->
-  <div id="tab-groups" class="tab-content active">
-    <!-- Groups list -->
-    <div class="section">
-      <h2>Groups</h2>
-      <div id="groups-list" class="groups-list">
-        <p class="empty-msg">No groups</p>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tab Manager</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <!-- Header -->
+    <div class="header">
+      <div class="header-top">
+        <h1>Tab Manager</h1>
+        <button
+          id="theme-toggle"
+          class="theme-toggle"
+          title="Toggle theme"
+          aria-label="Toggle dark/light theme"
+        >
+          ☀
+        </button>
       </div>
     </div>
 
-    <!-- Tabs list -->
-    <div class="section">
-      <h2>All Tabs <span id="tab-count" class="badge">0</span></h2>
-      <div class="tab-actions">
-        <button id="btn-select-all" class="btn-small" aria-label="Select all tabs">Select All</button>
-        <button id="btn-deselect-all" class="btn-small" aria-label="Deselect all tabs">Deselect All</button>
-      </div>
-      <div id="tabs-list" class="tabs-list"></div>
+    <!-- Tab Navigation -->
+    <div class="tab-nav">
+      <button class="tab-nav-btn active" data-tab="groups">Groups</button>
+      <button class="tab-nav-btn" data-tab="saved">
+        Saved <span id="saved-count" class="badge">0</span>
+      </button>
     </div>
-  </div>
 
-  <!-- Saved Tab Content -->
-  <div id="tab-saved" class="tab-content">
-    <div class="section">
-      <div class="saved-actions">
-        <button id="btn-export" class="btn-small" aria-label="Export saved groups">Export</button>
-        <button id="btn-import" class="btn-small" aria-label="Import groups">Import</button>
-        <input type="file" id="import-file" accept=".json" style="display: none;">
+    <!-- Groups Tab Content -->
+    <div id="tab-groups" class="tab-content active">
+      <!-- Groups list -->
+      <div class="section">
+        <h2>Groups</h2>
+        <div id="groups-list" class="groups-list">
+          <p class="empty-msg">No groups</p>
+        </div>
       </div>
-      <div id="saved-groups-list" class="groups-list">
-        <p class="empty-msg">No saved groups</p>
+
+      <!-- Tabs list -->
+      <div class="section">
+        <h2>All Tabs <span id="tab-count" class="badge">0</span></h2>
+        <div class="tab-actions">
+          <button
+            id="btn-select-all"
+            class="btn-small"
+            aria-label="Select all tabs"
+          >
+            Select All
+          </button>
+          <button
+            id="btn-deselect-all"
+            class="btn-small"
+            aria-label="Deselect all tabs"
+          >
+            Deselect All
+          </button>
+        </div>
+        <div id="tabs-list" class="tabs-list"></div>
       </div>
     </div>
-  </div>
 
-  <!-- Pixel Modal -->
-  <div id="pixel-modal" class="pixel-modal hidden">
-    <div class="pixel-modal-content">
-      <p id="pixel-modal-message"></p>
-      <button id="pixel-modal-ok" class="pixel-btn">OK</button>
+    <!-- Saved Tab Content -->
+    <div id="tab-saved" class="tab-content">
+      <div class="section">
+        <div class="saved-actions">
+          <button
+            id="btn-export"
+            class="btn-small"
+            aria-label="Export saved groups"
+          >
+            Export
+          </button>
+          <button id="btn-import" class="btn-small" aria-label="Import groups">
+            Import
+          </button>
+          <input
+            type="file"
+            id="import-file"
+            accept=".json"
+            style="display: none"
+          />
+        </div>
+        <div id="saved-groups-list" class="groups-list">
+          <p class="empty-msg">No saved groups</p>
+        </div>
+      </div>
     </div>
-  </div>
 
-  <script src="popup.js"></script>
-</body>
+    <!-- Pixel Modal -->
+    <div id="pixel-modal" class="pixel-modal hidden">
+      <div class="pixel-modal-content">
+        <p id="pixel-modal-message"></p>
+        <button id="pixel-modal-ok" class="pixel-btn">OK</button>
+      </div>
+    </div>
+
+    <script src="popup.js"></script>
+  </body>
 </html>
