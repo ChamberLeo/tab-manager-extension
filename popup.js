@@ -967,7 +967,7 @@ async function exportSavedGroups() {
     if (savedGroups.length === 1) {
       filename = `tab-groups-${sanitizeFilename(savedGroups[0].title)}-${date}.json`;
     } else {
-      filename = `tab-groups-${sanitizeFilename(savedGroups[0].title)}-等${savedGroups.length}個-${date}.json`;
+      filename = `tab-groups-${sanitizeFilename(savedGroups[0].title)}-and-${savedGroups.length}-more-${date}.json`;
     }
 
     const a = document.createElement("a");
