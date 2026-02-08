@@ -1,14 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" shape-rendering="crispEdges">
-  <!-- Background -->
-  <rect x="0" y="0" width="16" height="16" fill="#e0e0e0"/>
-  <!-- Border -->
-  <rect x="0" y="0" width="16" height="1" fill="#1a1a1a"/>
-  <rect x="0" y="15" width="16" height="1" fill="#1a1a1a"/>
-  <rect x="0" y="0" width="1" height="16" fill="#1a1a1a"/>
-  <rect x="15" y="0" width="1" height="16" fill="#1a1a1a"/>
-  <!-- Tab bars (pixel style) -->
-  <rect x="2" y="3" width="8" height="2" fill="#1a1a1a"/>
-  <rect x="2" y="7" width="11" height="2" fill="#4a4a4a"/>
-  <rect x="2" y="11" width="6" height="2" fill="#808080"/>
+<!-- Generator: Adobe Illustrator 25.0.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+<svg version="1.1" id="圖層_1" shape-rendering="crispEdges"
+	 xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" viewBox="0 0 16 16"
+	 style="enable-background:new 0 0 16 16;" xml:space="preserve">
+<style type="text/css">
+	.st0{fill:#E0E0E0;}
+	.st1{fill:#1A1A1A;}
+	.st2{fill:#FFFFFF;}
+	.st3{fill:#808080;}
+	.st4{fill:#4A4A4A;}
+</style>
+<rect class="st0" width="16" height="16"/>
+<rect class="st1" width="16" height="1"/>
+<rect y="15" class="st1" width="16" height="1"/>
+<rect class="st1" width="1" height="16"/>
+<rect x="15" class="st1" width="1" height="16"/>
+<rect x="1" y="1" class="st2" width="14" height="0.7"/>
+<rect x="1" y="1" class="st2" width="0.7" height="14"/>
+<rect x="1" y="14.3" class="st3" width="14" height="0.7"/>
+<rect x="14.3" y="1" class="st3" width="0.7" height="14"/>
+<rect x="3" y="4" class="st3" width="8" height="2"/>
+<rect x="3" y="7" class="st4" width="10" height="2"/>
+<rect x="3" y="10" class="st1" width="6" height="2"/>
 </svg>
