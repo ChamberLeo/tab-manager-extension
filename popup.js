@@ -181,10 +181,12 @@ async function loadTabs() {
     tabsList.innerHTML = "";
     tabCount.textContent = tabs.length;
 
-    // 清理無效的 selectedTabIds
-    const validTabIds = new Set(tabs.map((t) => t.id));
+    // 清理無效的 selectedTabIds（排除已在群組中的分頁）
+    const ungroupedTabIds = new Set(
+      tabs.filter((t) => !t.groupId || t.groupId === -1).map((t) => t.id),
+    );
     selectedTabIds = new Set(
-      [...selectedTabIds].filter((id) => validTabIds.has(id)),
+      [...selectedTabIds].filter((id) => ungroupedTabIds.has(id)),
     );
 
     tabs.forEach((tab) => {
@@ -281,6 +283,7 @@ function bindGroupDragEvents(item, dropHandler) {
 
   item.addEventListener("drop", async (e) => {
     e.preventDefault();
+    e.stopPropagation();
     item.classList.remove("drag-over");
     if (draggedTabIds.length === 0) return;
     try {
@@ -446,6 +449,7 @@ async function loadGroups() {
 
     dropHint.addEventListener("drop", async (e) => {
       e.preventDefault();
+      e.stopPropagation();
       dropHint.classList.remove("drag-over");
       if (draggedTabIds.length === 0) return;
 
