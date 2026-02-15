@@ -1,6 +1,7 @@
 // ===== State =====
 let selectedTabIds = new Set();
 let draggedTabIds = []; // Tab IDs being dragged
+let expandedGroupIds = new Set(); // Groups expanded in popup UI
 let activeColorPopup = null; // Currently open color popup
 
 // ===== DOM Elements =====
@@ -310,26 +311,87 @@ async function loadGroups() {
       // Still add drop hint even when no groups
     }
 
+    // Clean up stale expandedGroupIds
+    const currentGroupIds = new Set(groups.map((g) => g.id));
+    expandedGroupIds = new Set(
+      [...expandedGroupIds].filter((id) => currentGroupIds.has(id)),
+    );
+
     // Chrome 群組
     for (const group of groups) {
       const tabs = await chrome.tabs.query({ groupId: group.id });
+      const isExpanded = expandedGroupIds.has(group.id);
       const item = document.createElement("div");
       item.className = "group-item";
       item.innerHTML = `
-      <div class="group-info">
-        <span class="group-color-dot clickable" data-group-id="${group.id}" data-current-color="${group.color}" style="background:${COLOR_MAP[group.color] || "#5f6368"}"></span>
-        <span class="group-title">${escapeHtml(group.title || "Untitled")}</span>
-        <span class="group-edit-icon" title="Rename group">✎</span>
-        <span class="group-tab-count">(${tabs.length} tabs)</span>
-      </div>
-      <div class="group-actions">
-        <button class="btn-save" data-group-id="${group.id}" aria-label="Save group">Save</button>
-        <button class="btn-toggle" data-group-id="${group.id}" data-collapsed="${group.collapsed}">
-          ${group.collapsed ? "Expand" : "Collapse"}
-        </button>
-        <button class="btn-danger btn-ungroup" data-group-id="${group.id}">Ungroup</button>
+      <div class="group-item-header">
+        <div class="group-info">
+          <span class="group-color-dot clickable" data-group-id="${group.id}" data-current-color="${group.color}" style="background:${COLOR_MAP[group.color] || "#5f6368"}"></span>
+          <span class="group-title">${escapeHtml(group.title || "Untitled")}</span>
+          <span class="group-edit-icon" title="Rename group">✎</span>
+          <span class="group-tab-count">(${tabs.length} tabs)</span>
+        </div>
+        <div class="group-actions">
+          <button class="btn-save" data-group-id="${group.id}" aria-label="Save group">Save</button>
+          <button class="btn-toggle" data-group-id="${group.id}">
+            ${isExpanded ? "Collapse" : "Expand"}
+          </button>
+          <button class="btn-danger btn-ungroup" data-group-id="${group.id}">Ungroup</button>
+        </div>
       </div>
     `;
+
+      // Render expanded tab list
+      if (isExpanded) {
+        const tabListEl = document.createElement("div");
+        tabListEl.className = "group-tab-list";
+        for (const tab of tabs) {
+          const tabItem = document.createElement("div");
+          tabItem.className = "group-tab-item";
+          tabItem.draggable = true;
+          tabItem.dataset.tabId = tab.id;
+          tabItem.innerHTML = `
+            <span class="drag-handle">::</span>
+            <img src="${sanitizeFavIconUrl(tab.favIconUrl)}" alt="">
+            <span class="tab-title">${escapeHtml(tab.title)}</span>
+            <button class="btn-ungroup-tab" title="Remove from group">x</button>
+          `;
+
+          tabItem.addEventListener("dragstart", (e) => {
+            draggedTabIds = [tab.id];
+            tabItem.classList.add("dragging");
+            const ghost = document.createElement("div");
+            ghost.className = "drag-ghost";
+            ghost.textContent = escapeHtml(tab.title).substring(
+              0,
+              CONFIG.MAX_DRAG_TITLE_LENGTH,
+            );
+            document.body.appendChild(ghost);
+            e.dataTransfer.setDragImage(ghost, 0, 0);
+            requestAnimationFrame(() => ghost.remove());
+            e.dataTransfer.effectAllowed = "move";
+          });
+
+          tabItem.addEventListener("dragend", () => {
+            tabItem.classList.remove("dragging");
+          });
+
+          tabItem
+            .querySelector(".btn-ungroup-tab")
+            .addEventListener("click", async () => {
+              try {
+                await chrome.tabs.ungroup(tab.id);
+                loadGroups();
+                loadTabs();
+              } catch (error) {
+                console.error("Failed to ungroup tab:", error);
+              }
+            });
+
+          tabListEl.appendChild(tabItem);
+        }
+        item.appendChild(tabListEl);
+      }
 
       // 點擊色點 → 彈出顏色選擇器
       const colorDot = item.querySelector(".group-color-dot");
@@ -370,16 +432,15 @@ async function loadGroups() {
         startEdit();
       });
 
-      // 展開 / 摺疊
-      item.querySelector(".btn-toggle").addEventListener("click", async (e) => {
-        try {
-          const groupId = Number(e.target.dataset.groupId);
-          const isCollapsed = e.target.dataset.collapsed === "true";
-          await chrome.tabGroups.update(groupId, { collapsed: !isCollapsed });
-          loadGroups();
-        } catch (error) {
-          console.error("Failed to toggle group:", error);
+      // 展開 / 摺疊 (local UI state)
+      item.querySelector(".btn-toggle").addEventListener("click", (e) => {
+        const groupId = Number(e.target.dataset.groupId);
+        if (expandedGroupIds.has(groupId)) {
+          expandedGroupIds.delete(groupId);
+        } else {
+          expandedGroupIds.add(groupId);
         }
+        loadGroups();
       });
 
       // 儲存群組
@@ -805,15 +866,17 @@ async function loadSavedGroups() {
       const item = document.createElement("div");
       item.className = "group-item saved-group";
       item.innerHTML = `
-        <div class="group-info">
-          <span class="group-color-dot" style="background:${COLOR_MAP[group.color] || "#5f6368"}"></span>
-          <span class="group-title">${escapeHtml(group.title)}</span>
-          <span class="group-tab-count">(${group.urls.length} tabs)</span>
-        </div>
-        <div class="group-actions">
-          <button class="btn-share" data-group-id="${group.id}" aria-label="Share group">Share</button>
-          <button class="btn-restore" data-group-id="${group.id}" aria-label="Restore group">Restore</button>
-          <button class="btn-danger btn-delete" data-group-id="${group.id}" aria-label="Delete saved group">Delete</button>
+        <div class="group-item-header">
+          <div class="group-info">
+            <span class="group-color-dot" style="background:${COLOR_MAP[group.color] || "#5f6368"}"></span>
+            <span class="group-title">${escapeHtml(group.title)}</span>
+            <span class="group-tab-count">(${group.urls.length} tabs)</span>
+          </div>
+          <div class="group-actions">
+            <button class="btn-share" data-group-id="${group.id}" aria-label="Share group">Share</button>
+            <button class="btn-restore" data-group-id="${group.id}" aria-label="Restore group">Restore</button>
+            <button class="btn-danger btn-delete" data-group-id="${group.id}" aria-label="Delete saved group">Delete</button>
+          </div>
         </div>
       `;
 
